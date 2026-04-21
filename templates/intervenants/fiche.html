@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+{% block title %}{{ intervenant.prenom }} {{ intervenant.nom }} — Limoud Hub{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="{{ url_for('intervenants.liste') }}" class="text-muted small">← Intervenants</a>
+        <h4 class="fw-bold mb-0 mt-1">{{ intervenant.prenom }} {{ intervenant.nom }}</h4>
+        {% if intervenant.fonction_titre %}
+        <div class="text-muted small">{{ intervenant.fonction_titre }}</div>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        {% include 'shared/selecteur_edition.html' %}
+        {% if peut_modifier %}
+        <a href="{{ url_for('intervenants.form', iid=intervenant.id) }}"
+           class="btn btn-sm btn-outline-secondary">Modifier</a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statut participation édition courante -->
+{% if edition_sel %}
+<div class="alert py-2 mb-3" style="background:#f0f7ff;border-left:4px solid #1a5276;">
+    <div class="d-flex justify-content-between align-items-center">
+        <span class="small fw-semibold">{{ edition_sel.nom }}</span>
+        {% if participation %}
+        <span class="badge" style="background:#6c757d">{{ participation.statut_code }}</span>
+        {% else %}
+        <span class="badge bg-warning text-dark">Non rattaché à cette édition</span>
+        {% endif %}
+        {% if participation and participation.ha_inscrit %}
+        <span class="badge bg-success">HelloAsso ✓</span>
+        {% elif participation %}
+        <span class="badge bg-danger">HelloAsso non inscrit</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Onglets -->
+<ul class="nav nav-tabs mb-3" id="ficheTab">
+    <li class="nav-item">
+        <a class="nav-link active" data-bs-toggle="tab" href="#identite">Identité</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#bio">Bio & Publications</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#participation">
+            Participation
+            {% if participation %}<span class="badge bg-success ms-1">✓</span>{% endif %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#sessions_tab">
+            Sessions
+            {% if sessions %}<span class="badge bg-primary ms-1">{{ sessions|length }}</span>{% endif %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#historique_tab">
+            Historique
+            {% if historique %}<span class="badge bg-secondary ms-1">{{ historique|length }}</span>{% endif %}
+        </a>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- IDENTITÉ -->
+    <div class="tab-pane fade show active" id="identite">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">Coordonnées</h6>
+                        {% if peut_voir_contacts %}
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr><td class="text-muted small">Email principal</td>
+                                <td>{{ intervenant.email_principal or '—' }}</td></tr>
+                            <tr><td class="text-muted small">Email secondaire</td>
+                                <td>{{ intervenant.email_secondaire or '—' }}</td></tr>
+                            <tr><td class="text-muted small">Mobile</td>
+                                <td>{{ intervenant.tel_mobile or '—' }}</td></tr>
+                            <tr><td class="text-muted small">Fixe</td>
+                                <td>{{ intervenant.tel_fixe or '—' }}</td></tr>
+                            <tr><td class="text-muted small">Ville</td>
+                                <td>{{ intervenant.ville or '—' }}{% if intervenant.pays and intervenant.pays != 'France' %} ({{ intervenant.pays }}){% endif %}</td></tr>
+                        </table>
+                        {% else %}
+                        <p class="text-muted small">Accès aux coordonnées non autorisé.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3">Réseaux & Web</h6>
+                        <table class="table table-sm table-borderless mb-0">
+                            {% if intervenant.site_web %}
+                            <tr><td class="text-muted small">Site</td>
+                                <td><a href="{{ intervenant.site_web }}" target="_blank">{{ intervenant.site_web }}</a></td></tr>
+                            {% endif %}
+                            {% if intervenant.twitter %}
+                            <tr><td class="text-muted small">Twitter/X</td><td>{{ intervenant.twitter }}</td></tr>
+                            {% endif %}
+                            {% if intervenant.instagram %}
+                            <tr><td class="text-muted small">Instagram</td><td>{{ intervenant.instagram }}</td></tr>
+                            {% endif %}
+                            {% if intervenant.linkedin %}
+                            <tr><td class="text-muted small">LinkedIn</td><td>{{ intervenant.linkedin }}</td></tr>
+                            {% endif %}
+                        </table>
+                        <h6 class="fw-bold mb-2 mt-3">Autorisations</h6>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <span class="badge {% if intervenant.accord_photo %}bg-success{% else %}bg-secondary{% endif %}">
+                                Photo {{ 'OK' if intervenant.accord_photo else 'Non' }}
+                            </span>
+                            <span class="badge {% if intervenant.accord_podcast %}bg-success{% else %}bg-secondary{% endif %}">
+                                Podcast {{ 'OK' if intervenant.accord_podcast else 'Non' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BIO -->
+    <div class="tab-pane fade" id="bio">
+        <div class="card">
+            <div class="card-body">
+                {% if intervenant.mini_bio %}
+                <h6 class="fw-bold">Biographie</h6>
+                <p>{{ intervenant.mini_bio }}</p>
+                {% endif %}
+                {% if intervenant.specialites %}
+                <h6 class="fw-bold mt-3">Spécialités</h6>
+                <p>{{ intervenant.specialites }}</p>
+                {% endif %}
+                {% if intervenant.institutions %}
+                <h6 class="fw-bold mt-3">Institutions</h6>
+                <p>{{ intervenant.institutions }}</p>
+                {% endif %}
+                {% if intervenant.oeuvres_publications %}
+                <h6 class="fw-bold mt-3">Œuvres & Publications</h6>
+                <p style="white-space:pre-wrap">{{ intervenant.oeuvres_publications }}</p>
+                {% endif %}
+                {% if not intervenant.mini_bio and not intervenant.specialites %}
+                <p class="text-muted">Aucune biographie renseignée.
+                    {% if peut_modifier %}
+                    <a href="{{ url_for('intervenants.form', iid=intervenant.id) }}">Compléter la fiche</a>
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- PARTICIPATION -->
+    <div class="tab-pane fade" id="participation">
+        {% if edition_sel %}
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Participation — {{ edition_sel.nom }}</h6>
+                {% if peut_modifier %}
+                <form method="POST" action="{{ url_for('intervenants.participation_update', iid=intervenant.id) }}">
+                    <input type="hidden" name="edition_id" value="{{ edition_sel.id }}">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Statut</label>
+                            <select class="form-select form-select-sm" name="statut_code">
+                                <option value="a_contacter" {% if not participation or participation.statut_code == 'a_contacter' %}selected{% endif %}>À contacter</option>
+                                <option value="contacte" {% if participation and participation.statut_code == 'contacte' %}selected{% endif %}>Contacté</option>
+                                <option value="en_discussion" {% if participation and participation.statut_code == 'en_discussion' %}selected{% endif %}>En discussion</option>
+                                <option value="formulaire_envoye" {% if participation and participation.statut_code == 'formulaire_envoye' %}selected{% endif %}>Formulaire envoyé</option>
+                                <option value="formulaire_recu" {% if participation and participation.statut_code == 'formulaire_recu' %}selected{% endif %}>Formulaire reçu</option>
+                                <option value="confirme" {% if participation and participation.statut_code == 'confirme' %}selected{% endif %}>Confirmé</option>
+                                <option value="annule" {% if participation and participation.statut_code == 'annule' %}selected{% endif %}>Annulé</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Présence</label>
+                            <select class="form-select form-select-sm" name="type_presence_code">
+                                <option value="">— Non défini —</option>
+                                <option value="we_complet" {% if participation and participation.type_presence_code == 'we_complet' %}selected{% endif %}>Week-end complet</option>
+                                <option value="dimanche_seul" {% if participation and participation.type_presence_code == 'dimanche_seul' %}selected{% endif %}>Dimanche seulement</option>
+                                <option value="juste_interventions" {% if participation and participation.type_presence_code == 'juste_interventions' %}selected{% endif %}>Pour ses interventions</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Proposé par</label>
+                            <input type="text" class="form-control form-control-sm" name="propose_par"
+                                   value="{{ participation.propose_par if participation else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Contraintes</label>
+                            <textarea class="form-control form-control-sm" name="contraintes" rows="2">{{ participation.contraintes if participation else '' }}</textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Commentaires équipe</label>
+                            <textarea class="form-control form-control-sm" name="commentaires_equipe" rows="2">{{ participation.commentaires_equipe if participation else '' }}</textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Livres à vendre</label>
+                            <input type="text" class="form-control form-control-sm" name="livres_a_vendre"
+                                   value="{{ participation.livres_a_vendre if participation else '' }}">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="dedicace"
+                                       {% if participation and participation.dedicace %}checked{% endif %}>
+                                <label class="form-check-label small">Dédicace</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="invite_officiel"
+                                       {% if participation and participation.invite_officiel %}checked{% endif %}>
+                                <label class="form-check-label small">Invité officiel</label>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-limoud btn-sm mt-3">Enregistrer</button>
+                </form>
+                {% else %}
+                <p class="text-muted small">Modification non autorisée.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-warning">Sélectionnez une édition pour gérer la participation.</div>
+        {% endif %}
+    </div>
+
+    <!-- SESSIONS -->
+    <div class="tab-pane fade" id="sessions_tab">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Sessions — {{ edition_sel.nom if edition_sel else 'toutes éditions' }}</h6>
+                {% if sessions %}
+                <table class="table table-sm table-hover">
+                    <thead class="table-light">
+                        <tr><th>Titre</th><th>Rôle</th><th>Créneaux</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    {% for s in sessions %}
+                    <tr>
+                        <td class="fw-semibold">{{ s.titre }}</td>
+                        <td><span class="badge bg-secondary">{{ s.role_code }}</span></td>
+                        <td class="small text-muted">{{ s.creneaux or '—' }}</td>
+                        <td>
+                            <a href="{{ url_for('sessions.fiche', sid=s.id) }}"
+                               class="btn btn-sm btn-outline-secondary">Voir</a>
+                            {% if peut_modifier %}
+                            <form method="POST"
+                                  action="{{ url_for('intervenants.session_retirer', iid=intervenant.id, sid=s.id) }}"
+                                  style="display:inline"
+                                  onsubmit="return confirm('Retirer cette session ?')">
+                                <button class="btn btn-sm btn-outline-danger">✕</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted small">Aucune session pour cette édition.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- HISTORIQUE -->
+    <div class="tab-pane fade" id="historique_tab">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Historique des participations</h6>
+                {% if historique %}
+                <table class="table table-sm">
+                    <thead class="table-light">
+                        <tr><th>Édition</th><th>Statut</th><th>Présence</th><th>Référent</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for h in historique %}
+                    <tr>
+                        <td class="fw-semibold">{{ h.edition_nom }}</td>
+                        <td><span class="badge bg-secondary">{{ h.statut_code }}</span></td>
+                        <td class="small">{{ h.type_presence_code or '—' }}</td>
+                        <td class="small text-muted">{{ h.referent_nom or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted small">Aucune participation enregistrée.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

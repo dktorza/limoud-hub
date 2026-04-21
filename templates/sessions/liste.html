@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}Sessions — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0">Sessions <span class="badge bg-secondary ms-2">{{ total }}</span></h4>
+    <div class="d-flex gap-2 align-items-center">
+        {% include 'shared/selecteur_edition.html' %}
+        <a href="{{ url_for('sessions.form') }}" class="btn btn-limoud btn-sm">+ Nouvelle session</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-3">
+                <input type="text" class="form-control form-control-sm" name="q"
+                       value="{{ search }}" placeholder="Rechercher...">
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" name="statut">
+                    <option value="">Tous statuts</option>
+                    {% for s in statuts %}
+                    <option value="{{ s.code }}" {% if statut_filtre == s.code %}selected{% endif %}>{{ s.libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" name="theme">
+                    <option value="">Tous thèmes</option>
+                    {% for t in themes %}
+                    <option value="{{ t.id }}" {% if theme_filtre == t.id|string %}selected{% endif %}>{{ t.libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" name="format">
+                    <option value="">Tous formats</option>
+                    {% for f in formats %}
+                    <option value="{{ f.code }}" {% if format_filtre == f.code %}selected{% endif %}>{{ f.libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Filtrer</button>
+                <a href="{{ url_for('sessions.liste') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr><th>Titre</th><th>Thème</th><th>Format</th><th>Intervenants</th><th>Créneaux</th><th>Statut</th><th></th></tr>
+            </thead>
+            <tbody>
+            {% for s in sessions %}
+            <tr>
+                <td>
+                    <div class="fw-semibold">{{ s.titre }}</div>
+                    {% if s.est_focus %}<span class="badge bg-warning text-dark me-1">Focus</span>{% endif %}
+                    {% if s.est_18_35 %}<span class="badge bg-info me-1">18/35</span>{% endif %}
+                    {% if s.est_famille %}<span class="badge bg-success me-1">Famille</span>{% endif %}
+                </td>
+                <td>
+                    {% if s.theme_libelle %}
+                    <span class="badge" style="background:{{ s.theme_couleur }}">{{ s.theme_libelle }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="small text-muted">{{ s.format_libelle or '—' }}</td>
+                <td class="small">{{ s.intervenants_noms or '—' }}</td>
+                <td class="text-center">
+                    {% if s.nb_creneaux > 0 %}
+                    <span class="badge bg-primary">{{ s.nb_creneaux }}</span>
+                    {% else %}<span class="text-muted">0</span>{% endif %}
+                </td>
+                <td>
+                    <span class="badge" style="background:{{ s.statut_couleur or '#6c757d' }}">
+                        {{ s.statut_libelle or s.statut_code }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('sessions.fiche', sid=s.id) }}"
+                       class="btn btn-sm btn-outline-secondary">Voir</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center text-muted py-4">
+                    Aucune session.
+                    <a href="{{ url_for('sessions.form') }}">Créer la première ?</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

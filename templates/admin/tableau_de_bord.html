@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Administration — Limoud Hub{% endblock %}
+{% block content %}
+<h4 class="fw-bold mb-4">Administration</h4>
+<div class="row g-3">
+    <div class="col-md-3">
+        <div class="card text-center p-3">
+            <div class="fs-1">👥</div>
+            <div class="fw-semibold">{{ stats.nb_utilisateurs }}</div>
+            <div class="text-muted small">Utilisateurs</div>
+            <a href="{{ url_for('admin.utilisateurs_liste') }}" class="btn btn-limoud btn-sm mt-2">Gérer</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center p-3">
+            <div class="fs-1">🎭</div>
+            <div class="fw-semibold">{{ stats.nb_roles }}</div>
+            <div class="text-muted small">Rôles</div>
+            <a href="{{ url_for('admin.roles_liste') }}" class="btn btn-limoud btn-sm mt-2">Gérer</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center p-3">
+            <div class="fs-1">🏛️</div>
+            <div class="fw-semibold">{{ stats.nb_organisations }}</div>
+            <div class="text-muted small">Organisations</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center p-3">
+            <div class="fs-1">📅</div>
+            <div class="fw-semibold">{{ stats.nb_editions }}</div>
+            <div class="text-muted small">Éditions</div>
+            <a href="{{ url_for('admin.editions_liste') }}" class="btn btn-limoud btn-sm mt-2">Gérer</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

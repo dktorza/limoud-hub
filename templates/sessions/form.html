@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Modifier' if session else 'Nouvelle' }} session — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0">{{ 'Modifier la session' if session else 'Nouvelle session' }}</h4>
+    <a href="{{ url_for('sessions.liste') }}" class="btn btn-outline-secondary btn-sm">← Retour</a>
+</div>
+
+<form method="POST">
+<input type="hidden" name="edition_id" value="{{ edition_sel.id if edition_sel else '' }}">
+<div class="row g-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Informations principales</h6>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Titre *</label>
+                        <input type="text" class="form-control" name="titre" required
+                               value="{{ session.titre if session else '' }}"
+                               placeholder="Ex: Tikoun Olam : réparer le monde aujourd'hui">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold">Description (pour le livret)</label>
+                        <textarea class="form-control" name="description" rows="4">{{ session.description if session else '' }}</textarea>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Thème</label>
+                        <select class="form-select form-select-sm" name="theme_id">
+                            <option value="">— Aucun —</option>
+                            {% for t in themes %}
+                            <option value="{{ t.id }}" {% if session and session.theme_id == t.id %}selected{% endif %}>
+                                {{ t.libelle }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Format</label>
+                        <select class="form-select form-select-sm" name="format_code">
+                            <option value="">— Aucun —</option>
+                            {% for f in formats %}
+                            <option value="{{ f.code }}" {% if session and session.format_code == f.code %}selected{% endif %}>
+                                {{ f.libelle }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Durée (min)</label>
+                        <input type="number" class="form-control form-control-sm" name="duree_minutes"
+                               value="{{ session.duree_minutes if session else 60 }}" min="15" step="15">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-semibold">Statut</label>
+                        <select class="form-select form-select-sm" name="statut_code">
+                            {% for s in statuts %}
+                            <option value="{{ s.code }}" {% if session and session.statut_code == s.code %}selected{% elif not session and s.code == 'brouillon' %}selected{% endif %}>
+                                {{ s.libelle }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Langue</label>
+                        <select class="form-select form-select-sm" name="langue_code">
+                            {% for l in langues %}
+                            <option value="{{ l.code }}" {% if session and session.langue_code == l.code %}selected{% elif not session and l.code == 'fr' %}selected{% endif %}>
+                                {{ l.libelle }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Niveau</label>
+                        <select class="form-select form-select-sm" name="niveau_code">
+                            {% for n in niveaux %}
+                            <option value="{{ n.code }}" {% if session and session.niveau_code == n.code %}selected{% elif not session and n.code == 'tout_public' %}selected{% endif %}>
+                                {{ n.libelle }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Tags spéciaux</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="est_focus"
+                                       {% if session and session.est_focus %}checked{% endif %}>
+                                <label class="form-check-label small">Focus</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="est_pays_honneur"
+                                       {% if session and session.est_pays_honneur %}checked{% endif %}>
+                                <label class="form-check-label small">Pays honneur</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="est_18_35"
+                                       {% if session and session.est_18_35 %}checked{% endif %}>
+                                <label class="form-check-label small">18/35 ans</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="est_famille"
+                                       {% if session and session.est_famille %}checked{% endif %}>
+                                <label class="form-check-label small">Famille</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Besoins techniques</h6>
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label small">Matériel demandé à la salle</label>
+                        <input type="text" class="form-control form-control-sm" name="materiel_salle"
+                               value="{{ session.materiel_salle if session else '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Matériel apporté par l'intervenant</label>
+                        <input type="text" class="form-control form-control-sm" name="materiel_intervenant"
+                               value="{{ session.materiel_intervenant if session else '' }}">
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="besoin_micro"
+                                       {% if session and session.besoin_micro %}checked{% endif %}>
+                                <label class="form-check-label small">Micro</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="besoin_video"
+                                       {% if session and session.besoin_video %}checked{% endif %}>
+                                <label class="form-check-label small">Vidéoprojecteur</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="besoin_sono"
+                                       {% if session and session.besoin_sono %}checked{% endif %}>
+                                <label class="form-check-label small">Sonorisation</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <label class="form-label small fw-semibold">Commentaire équipe (interne)</label>
+                <textarea class="form-control form-control-sm" name="commentaire_equipe" rows="2">{{ session.commentaire_equipe if session else '' }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-limoud">
+            {{ 'Enregistrer' if session else 'Créer la session' }}
+        </button>
+        <a href="{{ url_for('sessions.liste') }}" class="btn btn-outline-secondary">Annuler</a>
+    </div>
+</div>
+</form>
+{% endblock %}

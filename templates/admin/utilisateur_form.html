@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Nouvel utilisateur — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0">Nouvel utilisateur</h4>
+    <a href="{{ url_for('admin.utilisateurs_liste') }}" class="btn btn-outline-secondary">← Retour</a>
+</div>
+<div class="card">
+    <div class="card-body p-4" style="max-width:500px">
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Prénom</label>
+                <input type="text" class="form-control" name="prenom" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Nom</label>
+                <input type="text" class="form-control" name="nom" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Email (= login)</label>
+                <input type="email" class="form-control" name="email" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Téléphone</label>
+                <input type="text" class="form-control" name="telephone">
+            </div>
+            <div class="alert alert-info small">
+                Un mot de passe provisoire sera généré automatiquement et affiché après création.
+                L'utilisateur devra le changer à sa première connexion.
+            </div>
+            <button type="submit" class="btn btn-limoud">Créer l'utilisateur</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

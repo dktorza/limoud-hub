@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% block title %}{{ session.titre }} — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="{{ url_for('sessions.liste') }}" class="text-muted small">← Sessions</a>
+        <h4 class="fw-bold mb-0 mt-1">{{ session.titre }}</h4>
+        <div class="d-flex gap-2 mt-1">
+            {% if session.theme_libelle %}
+            <span class="badge" style="background:{{ session.theme_couleur }}">{{ session.theme_libelle }}</span>
+            {% endif %}
+            {% if session.format_libelle %}
+            <span class="badge bg-secondary">{{ session.format_libelle }}</span>
+            {% endif %}
+            <span class="badge" style="background:{{ session.statut_couleur or '#6c757d' }}">
+                {{ session.statut_libelle }}
+            </span>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        {% include 'shared/selecteur_edition.html' %}
+        {% if peut_modifier %}
+        <a href="{{ url_for('sessions.form', sid=session.id) }}"
+           class="btn btn-sm btn-outline-secondary">Modifier</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Description -->
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-2">Description</h6>
+                {% if session.description %}
+                <p style="white-space:pre-wrap">{{ session.description }}</p>
+                {% else %}
+                <p class="text-muted small">Aucune description.</p>
+                {% endif %}
+                {% if session.commentaire_equipe %}
+                <hr>
+                <h6 class="fw-bold mb-2">Note équipe</h6>
+                <p class="text-muted small">{{ session.commentaire_equipe }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Infos techniques -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-2">Infos</h6>
+                <table class="table table-sm table-borderless mb-0">
+                    <tr><td class="text-muted small">Durée</td>
+                        <td>{{ session.duree_minutes }} min</td></tr>
+                    <tr><td class="text-muted small">Langue</td>
+                        <td>{{ session.langue_code }}</td></tr>
+                    <tr><td class="text-muted small">Niveau</td>
+                        <td>{{ session.niveau_code }}</td></tr>
+                </table>
+                <div class="d-flex flex-wrap gap-1 mt-2">
+                    {% if session.est_focus %}<span class="badge bg-warning text-dark">Focus</span>{% endif %}
+                    {% if session.est_pays_honneur %}<span class="badge bg-info">Pays honneur</span>{% endif %}
+                    {% if session.est_18_35 %}<span class="badge bg-primary">18/35 ans</span>{% endif %}
+                    {% if session.est_famille %}<span class="badge bg-success">Famille</span>{% endif %}
+                    {% if session.est_shabbat %}<span class="badge bg-secondary">Shabbat</span>{% endif %}
+                </div>
+                {% if session.besoin_micro or session.besoin_video or session.besoin_sono %}
+                <hr>
+                <h6 class="fw-bold mb-1 small">Technique</h6>
+                <div class="d-flex gap-1 flex-wrap">
+                    {% if session.besoin_micro %}<span class="badge bg-light text-dark border">Micro</span>{% endif %}
+                    {% if session.besoin_video %}<span class="badge bg-light text-dark border">Vidéo</span>{% endif %}
+                    {% if session.besoin_sono %}<span class="badge bg-light text-dark border">Sono</span>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Intervenants -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Intervenants ({{ intervenants|length }})</h6>
+                {% if intervenants %}
+                <table class="table table-sm table-hover mb-2">
+                    <tbody>
+                    {% for i in intervenants %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('intervenants.fiche', iid=i.id) }}" class="fw-semibold text-decoration-none">
+                                {{ i.prenom }} {{ i.nom }}
+                            </a>
+                        </td>
+                        <td><span class="badge bg-secondary small">{{ i.role_libelle }}</span></td>
+                        <td>
+                            {% if i.ha_inscrit %}
+                            <span class="text-success small">HA ✓</span>
+                            {% else %}
+                            <span class="text-danger small">HA ✗</span>
+                            {% endif %}
+                        </td>
+                        {% if peut_modifier %}
+                        <td>
+                            <form method="POST"
+                                  action="{{ url_for('sessions.intervenant_retirer', sid=session.id, iid=i.id) }}"
+                                  onsubmit="return confirm('Retirer ?')" style="display:inline">
+                                <button class="btn btn-sm btn-outline-danger py-0">✕</button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+
+                {% if peut_modifier and intervenants_dispo %}
+                <form method="POST" action="{{ url_for('sessions.intervenant_ajouter', sid=session.id) }}"
+                      class="d-flex gap-2 mt-2">
+                    <select class="form-select form-select-sm" name="intervenant_id" required>
+                        <option value="">— Ajouter un intervenant —</option>
+                        {% for i in intervenants_dispo %}
+                        <option value="{{ i.id }}">{{ i.prenom }} {{ i.nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <select class="form-select form-select-sm" name="role_code" style="width:180px">
+                        {% for r in roles %}
+                        <option value="{{ r.code }}">{{ r.libelle }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-limoud">Ajouter</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Créneaux -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Créneaux ({{ creneaux|length }})</h6>
+                {% if creneaux %}
+                <table class="table table-sm mb-2">
+                    <thead class="table-light">
+                        <tr><th>Jour</th><th>Horaire</th><th>Salle</th><th>Statut</th>{% if peut_modifier %}<th></th>{% endif %}</tr>
+                    </thead>
+                    <tbody>
+                    {% for c in creneaux %}
+                    <tr>
+                        <td class="fw-semibold">{{ c.jour|capitalize }}</td>
+                        <td>{{ c.heure_debut }} – {{ c.heure_fin }}</td>
+                        <td class="small">{{ c.salle_nom or '—' }}</td>
+                        <td><span class="badge bg-secondary small">{{ c.statut_code }}</span></td>
+                        {% if peut_modifier %}
+                        <td>
+                            <form method="POST"
+                                  action="{{ url_for('sessions.creneau_supprimer', cid=c.id) }}"
+                                  onsubmit="return confirm('Supprimer ce créneau ?')" style="display:inline">
+                                <button class="btn btn-sm btn-outline-danger py-0">✕</button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+
+                {% if peut_modifier %}
+                <form method="POST" action="{{ url_for('sessions.creneau_ajouter', sid=session.id) }}"
+                      class="row g-2 mt-1">
+                    <div class="col-4">
+                        <select class="form-select form-select-sm" name="jour" required>
+                            <option value="">Jour</option>
+                            <option value="vendredi">Vendredi</option>
+                            <option value="samedi">Samedi</option>
+                            <option value="dimanche">Dimanche</option>
+                        </select>
+                    </div>
+                    <div class="col-3">
+                        <input type="time" class="form-control form-control-sm" name="heure_debut" required>
+                    </div>
+                    <div class="col-3">
+                        <input type="time" class="form-control form-control-sm" name="heure_fin" required>
+                    </div>
+                    <div class="col-2">
+                        <button type="submit" class="btn btn-sm btn-limoud w-100">+</button>
+                    </div>
+                    <div class="col-12">
+                        <select class="form-select form-select-sm" name="salle_id">
+                            <option value="">— Salle (optionnel) —</option>
+                            {% for s in salles %}
+                            <option value="{{ s.id }}">{{ s.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

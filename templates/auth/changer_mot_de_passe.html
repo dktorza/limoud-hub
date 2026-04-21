@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Changer de mot de passe — Limoud Hub{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card"><div class="card-body p-4">
+      <h5 class="mb-3">Changer mon mot de passe</h5>
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label">Mot de passe actuel</label>
+          <input type="password" class="form-control" name="mdp_actuel" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Nouveau mot de passe</label>
+          <input type="password" class="form-control" name="nouveau_mdp" required minlength="8">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Confirmer</label>
+          <input type="password" class="form-control" name="confirmation_mdp" required>
+        </div>
+        <button class="btn btn-limoud">Modifier</button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary ms-2">Annuler</a>
+      </form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

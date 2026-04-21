@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Tableau de bord — Limoud Hub{% endblock %}
+{% block content %}
+<div class="p-4">
+    <h4 class="fw-bold mb-4">Bienvenue sur Limoud Hub</h4>
+    <div class="card p-3">
+        <p>Le hub est opérationnel.</p>
+        <a href="{{ url_for('admin.tableau_de_bord') }}" class="btn btn-limoud">Administration</a>
+    </div>
+</div>
+{% endblock %}

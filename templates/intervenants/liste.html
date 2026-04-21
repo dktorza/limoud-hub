@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}Intervenants — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0">Intervenants
+        <span class="badge bg-secondary ms-2">{{ total }}</span>
+    </h4>
+    <div class="d-flex gap-2 align-items-center">
+        {% include 'shared/selecteur_edition.html' %}
+        <a href="{{ url_for('intervenants.form') }}" class="btn btn-limoud btn-sm">+ Nouvel intervenant</a>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <input type="text" class="form-control form-control-sm" name="q"
+                       value="{{ search }}" placeholder="Rechercher nom, prénom, email...">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select form-select-sm" name="statut">
+                    <option value="">Tous les statuts</option>
+                    {% for s in statuts %}
+                    <option value="{{ s.code }}" {% if statut_filtre == s.code %}selected{% endif %}>
+                        {{ s.libelle }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Filtrer</button>
+                <a href="{{ url_for('intervenants.liste') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Liste -->
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Intervenant</th>
+                    <th>Statut édition</th>
+                    <th>Sessions</th>
+                    <th>HA inscrit</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for i in intervenants %}
+            <tr>
+                <td>
+                    <div class="fw-semibold">{{ i.prenom }} {{ i.nom }}</div>
+                    {% if i.fonction_titre %}
+                    <div class="text-muted small">{{ i.fonction_titre[:60] }}{% if i.fonction_titre|length > 60 %}…{% endif %}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if i.statut_code %}
+                    <span class="badge" style="background:#6c757d">{{ i.statut_code }}</span>
+                    {% else %}
+                    <span class="text-muted small">—</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if i.nb_sessions > 0 %}
+                    <span class="badge bg-primary">{{ i.nb_sessions }}</span>
+                    {% else %}
+                    <span class="text-muted">0</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if i.ha_inscrit %}
+                    <span class="text-success fw-bold">✓</span>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('intervenants.fiche', iid=i.id) }}"
+                       class="btn btn-sm btn-outline-secondary">Voir</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                    Aucun intervenant trouvé.
+                    <a href="{{ url_for('intervenants.form') }}">Créer le premier ?</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Pagination -->
+    {% if total > par_page %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <span class="text-muted small">{{ total }} résultats</span>
+        <div class="d-flex gap-1">
+            {% if page > 1 %}
+            <a href="?page={{ page-1 }}&q={{ search }}&statut={{ statut_filtre }}"
+               class="btn btn-sm btn-outline-secondary">← Préc.</a>
+            {% endif %}
+            <span class="btn btn-sm disabled">Page {{ page }}</span>
+            {% if (page * par_page) < total %}
+            <a href="?page={{ page+1 }}&q={{ search }}&statut={{ statut_filtre }}"
+               class="btn btn-sm btn-outline-secondary">Suiv. →</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

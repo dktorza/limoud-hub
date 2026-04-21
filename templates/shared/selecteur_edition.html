@@ -1,0 +1,11 @@
+<form method="POST" action="{{ url_for('intervenants.changer_edition') }}" class="d-flex align-items-center gap-2">
+    <input type="hidden" name="next" value="{{ request.url }}">
+    <select name="edition_id" class="form-select form-select-sm" style="width:auto;"
+            onchange="this.form.submit()">
+        {% for e in editions %}
+        <option value="{{ e.id }}" {% if edition_sel and e.id == edition_sel.id %}selected{% endif %}>
+            {{ e.nom }}
+        </option>
+        {% endfor %}
+    </select>
+</form>

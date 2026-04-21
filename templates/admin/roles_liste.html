@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Rôles — Limoud Hub{% endblock %}
+{% block content %}
+<h4 class="fw-bold mb-4">Rôles ({{ roles|length }})</h4>
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr><th>Rôle</th><th>Description</th><th>Système</th></tr>
+            </thead>
+            <tbody>
+            {% for r in roles %}
+            <tr>
+                <td>
+                    <span class="badge" style="background:{{ r.couleur_hex }}">
+                        {{ r.libelle }}
+                    </span>
+                    <small class="text-muted ms-2">{{ r.code }}</small>
+                </td>
+                <td class="small text-muted">{{ r.description or '—' }}</td>
+                <td>{% if r.est_systeme %}<span class="badge bg-secondary">Système</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

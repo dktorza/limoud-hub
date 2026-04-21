@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Modifier' if intervenant else 'Nouvel' }} intervenant — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0">
+        {% if intervenant %}Modifier {{ intervenant.prenom }} {{ intervenant.nom }}
+        {% else %}Nouvel intervenant{% endif %}
+    </h4>
+    <a href="{{ url_for('intervenants.liste') }}" class="btn btn-outline-secondary btn-sm">← Retour</a>
+</div>
+
+<form method="POST">
+<div class="row g-3">
+    <!-- Identité -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Identité</h6>
+                <div class="row g-2">
+                    <div class="col-md-2">
+                        <label class="form-label small">Civilité</label>
+                        <select class="form-select form-select-sm" name="civilite_code">
+                            {% for c in civilites %}
+                            <option value="{{ c.code }}" {% if intervenant and intervenant.civilite_code == c.code %}selected{% endif %}>
+                                {{ c.libelle }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Prénom *</label>
+                        <input type="text" class="form-control form-control-sm" name="prenom" required
+                               value="{{ intervenant.prenom if intervenant else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Nom *</label>
+                        <input type="text" class="form-control form-control-sm" name="nom" required
+                               value="{{ intervenant.nom if intervenant else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Nom d'affichage (si différent)</label>
+                        <input type="text" class="form-control form-control-sm" name="nom_affichage"
+                               value="{{ intervenant.nom_affichage if intervenant else '' }}"
+                               placeholder="Ex: Rose Halber">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Fonction / Titre</label>
+                        <input type="text" class="form-control form-control-sm" name="fonction_titre"
+                               value="{{ intervenant.fonction_titre if intervenant else '' }}"
+                               placeholder="Ex: Professeur d'histoire, Université Paris-Sorbonne">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contacts -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Contacts <span class="text-danger small">(données sensibles)</span></h6>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label small">Email principal</label>
+                        <input type="email" class="form-control form-control-sm" name="email_principal"
+                               value="{{ intervenant.email_principal if intervenant else '' }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Email secondaire</label>
+                        <input type="email" class="form-control form-control-sm" name="email_secondaire"
+                               value="{{ intervenant.email_secondaire if intervenant else '' }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Mobile</label>
+                        <input type="tel" class="form-control form-control-sm" name="tel_mobile"
+                               value="{{ intervenant.tel_mobile if intervenant else '' }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Fixe</label>
+                        <input type="tel" class="form-control form-control-sm" name="tel_fixe"
+                               value="{{ intervenant.tel_fixe if intervenant else '' }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Ville</label>
+                        <input type="text" class="form-control form-control-sm" name="ville"
+                               value="{{ intervenant.ville if intervenant else '' }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Code postal</label>
+                        <input type="text" class="form-control form-control-sm" name="code_postal"
+                               value="{{ intervenant.code_postal if intervenant else '' }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Pays</label>
+                        <input type="text" class="form-control form-control-sm" name="pays"
+                               value="{{ intervenant.pays if intervenant else 'France' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Réseaux & autorisations -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Réseaux & Web</h6>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label small">Site web</label>
+                        <input type="url" class="form-control form-control-sm" name="site_web"
+                               value="{{ intervenant.site_web if intervenant else '' }}"
+                               placeholder="https://...">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Twitter / X</label>
+                        <input type="text" class="form-control form-control-sm" name="twitter"
+                               value="{{ intervenant.twitter if intervenant else '' }}" placeholder="@...">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Instagram</label>
+                        <input type="text" class="form-control form-control-sm" name="instagram"
+                               value="{{ intervenant.instagram if intervenant else '' }}" placeholder="@...">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">LinkedIn</label>
+                        <input type="url" class="form-control form-control-sm" name="linkedin"
+                               value="{{ intervenant.linkedin if intervenant else '' }}">
+                    </div>
+                </div>
+                <h6 class="fw-bold mb-2 mt-3">Autorisations</h6>
+                <div class="d-flex flex-column gap-1">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accord_photo"
+                               {% if not intervenant or intervenant.accord_photo %}checked{% endif %}>
+                        <label class="form-check-label small">Accord utilisation photo</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accord_photo_video_com"
+                               {% if intervenant and intervenant.accord_photo_video_com %}checked{% endif %}>
+                        <label class="form-check-label small">Accord photo/vidéo communication</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accord_podcast"
+                               {% if intervenant and intervenant.accord_podcast %}checked{% endif %}>
+                        <label class="form-check-label small">Accord podcast / enregistrement</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="nom_diffuse"
+                               {% if not intervenant or intervenant.nom_diffuse %}checked{% endif %}>
+                        <label class="form-check-label small">Nom diffusé publiquement</label>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label small">Email affiché dans le livret</label>
+                    <select class="form-select form-select-sm" name="email_livret_choix">
+                        <option value="aucun" {% if not intervenant or intervenant.email_livret_choix == 'aucun' %}selected{% endif %}>Aucun</option>
+                        <option value="principal" {% if intervenant and intervenant.email_livret_choix == 'principal' %}selected{% endif %}>Email principal</option>
+                        <option value="secondaire" {% if intervenant and intervenant.email_livret_choix == 'secondaire' %}selected{% endif %}>Email secondaire</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bio -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Biographie & Publications</h6>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label small">Mini biographie (pour le livret)</label>
+                        <textarea class="form-control" name="mini_bio" rows="4"
+                                  placeholder="Texte qui apparaîtra dans le livret...">{{ intervenant.mini_bio if intervenant else '' }}</textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Spécialités</label>
+                        <textarea class="form-control form-control-sm" name="specialites" rows="2">{{ intervenant.specialites if intervenant else '' }}</textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Institutions</label>
+                        <textarea class="form-control form-control-sm" name="institutions" rows="2">{{ intervenant.institutions if intervenant else '' }}</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Œuvres & Publications</label>
+                        <textarea class="form-control form-control-sm" name="oeuvres_publications" rows="3">{{ intervenant.oeuvres_publications if intervenant else '' }}</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Notes internes <span class="text-danger">(confidentielles)</span></label>
+                        <textarea class="form-control form-control-sm" name="notes_internes" rows="2"
+                                  placeholder="Notes visibles uniquement par l'équipe habilitée...">{{ intervenant.notes_internes if intervenant else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-limoud">
+            {% if intervenant %}Enregistrer les modifications{% else %}Créer l'intervenant{% endif %}
+        </button>
+        <a href="{{ url_for('intervenants.liste') }}" class="btn btn-outline-secondary">Annuler</a>
+    </div>
+</div>
+</form>
+{% endblock %}

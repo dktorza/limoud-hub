@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Connexion — Limoud Hub{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center" style="margin-top: 8vh;">
+    <div class="col-md-5 col-lg-4">
+
+        <div class="text-center mb-4">
+            <h2 class="fw-bold" style="color: var(--limoud-bleu);">
+                🎓 Limoud Hub
+            </h2>
+            <p class="text-muted">Intranet de l'équipe Limoud</p>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="card-title mb-4">Connexion</h5>
+
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-semibold">Email</label>
+                        <input type="email" class="form-control" id="email"
+                               name="email" required autofocus
+                               placeholder="votre@email.com">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="mot_de_passe" class="form-label fw-semibold">
+                            Mot de passe
+                        </label>
+                        <input type="password" class="form-control"
+                               id="mot_de_passe" name="mot_de_passe" required>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input"
+                               id="remember_me" name="remember_me">
+                        <label class="form-check-label" for="remember_me">
+                            Se souvenir de moi
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-limoud w-100 fw-semibold">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+                    </button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('auth.mot_de_passe_oublie') }}"
+                       class="small text-muted">
+                        Mot de passe oublié ?
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-center text-muted small mt-4">
+            Limoud France — accès réservé à l'équipe bénévole
+        </p>
+    </div>
+</div>
+{% endblock %}
