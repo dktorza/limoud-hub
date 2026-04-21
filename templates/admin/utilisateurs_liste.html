@@ -27,7 +27,17 @@
                 <td class="fw-semibold">{{ u.prenom }} {{ u.nom }}</td>
                 <td>{{ u.email }}</td>
                 <td>{{ u.telephone or '—' }}</td>
-                <td><span class="badge bg-secondary">{{ u.nb_roles }} rôle(s)</span></td>
+                <td>
+                    {% if u.roles %}
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for r in u.roles %}
+                        <span class="badge" style="background:{{ r.couleur_hex }}">{{ r.libelle }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <span class="text-muted small">Aucun rôle</span>
+                    {% endif %}
+                </td>
                 <td>
                     {% if u.actif %}
                     <span class="badge bg-success">Actif</span>
@@ -36,9 +46,9 @@
                     {% endif %}
                 </td>
                 <td class="text-muted small">{{ u.derniere_connexion_at or '—' }}</td>
-                <td>
+                <td class="text-end">
                     <a href="{{ url_for('admin.utilisateur_roles_edit', uid=u.id) }}"
-                       class="btn btn-sm btn-outline-secondary">Rôles</a>
+                       class="btn btn-sm btn-limoud">Modifier les rôles</a>
                 </td>
             </tr>
             {% endfor %}

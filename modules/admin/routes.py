@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
 from functools import wraps
-from database import query, execute, insert, row_to_dict, audit
+from database import query, execute, insert, row_to_dict, rows_to_list, audit
 
 bp = Blueprint('admin', __name__, template_folder='templates')
 
@@ -29,7 +29,17 @@ def tableau_de_bord():
 @bp.route('/utilisateurs')
 @admin_requis
 def utilisateurs_liste():
-    utilisateurs = query("SELECT u.*, COUNT(DISTINCT ur.role_code) as nb_roles FROM utilisateurs u LEFT JOIN utilisateur_roles ur ON ur.utilisateur_id = u.id AND ur.actif = 1 GROUP BY u.id ORDER BY u.nom, u.prenom")
+    raw = query("SELECT * FROM utilisateurs ORDER BY nom, prenom")
+    utilisateurs = rows_to_list(raw)
+    for u in utilisateurs:
+        u['roles'] = query("""
+            SELECT r.libelle, r.couleur_hex, r.code
+            FROM utilisateur_roles ur
+            JOIN roles r ON r.code = ur.role_code
+            WHERE ur.utilisateur_id = ? AND ur.actif = 1
+              AND (ur.expire_le IS NULL OR ur.expire_le > datetime('now'))
+            ORDER BY r.ordre
+        """, (u['id'],))
     return render_template('admin/utilisateurs_liste.html', utilisateurs=utilisateurs)
 
 @bp.route('/utilisateurs/nouveau', methods=['GET', 'POST'])
@@ -46,10 +56,14 @@ def utilisateur_nouveau():
         try:
             uid = insert('utilisateurs', {
                 'email': email, 'password_hash': generate_password_hash(mdp_prov),
-                'nom': nom, 'prenom': prenom, 'telephone': tel, 'actif': 1,
+                'nom': nom, 'prenom': prenom, 'telephone': tel,
+                'actif': 1, 'doit_changer_mdp': 1,
             })
-            flash(f'Utilisateur créé ! Mot de passe provisoire : {mdp_prov}', 'success')
-            return redirect(url_for('admin.utilisateur_roles_edit', uid=uid))
+            return render_template('admin/utilisateur_form.html',
+                                   utilisateur=None,
+                                   mdp_prov=mdp_prov,
+                                   new_uid=uid,
+                                   new_nom=f"{prenom} {nom}")
         except Exception as e:
             flash(f'Erreur : {e}', 'danger')
     return render_template('admin/utilisateur_form.html', utilisateur=None)
@@ -91,7 +105,16 @@ def utilisateur_roles_edit(uid):
 @bp.route('/roles')
 @admin_requis
 def roles_liste():
-    roles = query("SELECT * FROM roles ORDER BY ordre")
+    roles = query("""
+        SELECT r.*,
+               COUNT(DISTINCT p.id)  as nb_permissions,
+               COUNT(DISTINCT ur.utilisateur_id) as nb_utilisateurs
+        FROM roles r
+        LEFT JOIN permissions p ON p.role_code = r.code
+        LEFT JOIN utilisateur_roles ur ON ur.role_code = r.code AND ur.actif = 1
+        GROUP BY r.code
+        ORDER BY r.ordre
+    """)
     return render_template('admin/roles_liste.html', roles=roles)
 
 @bp.route('/editions')
@@ -160,6 +183,163 @@ def edition_durees(eid):
         return redirect(url_for('admin.edition_durees', eid=eid))
     durees = query("SELECT * FROM ref_durees_session WHERE edition_id=? ORDER BY ordre, duree_min", (eid,))
     return render_template('admin/edition_durees.html', edition=edition, durees=durees)
+
+_PERMISSION_TEMPLATES = {
+    'lecteur': [
+        ('intervenants', 'voir_liste'), ('intervenants', 'voir_fiche'),
+        ('sessions',     'voir_liste'), ('sessions',     'voir_fiche'),
+        ('planning',     'voir_liste'), ('participants',  'voir_liste'),
+    ],
+    'editeur': [
+        ('intervenants', 'voir_liste'), ('intervenants', 'voir_fiche'),
+        ('intervenants', 'modifier'),
+        ('sessions',     'voir_liste'), ('sessions',     'voir_fiche'),
+        ('sessions',     'modifier'),
+        ('planning',     'voir_liste'), ('participants',  'voir_liste'),
+        ('badges',       'voir_liste'),
+    ],
+    'responsable': [
+        ('intervenants', 'voir_liste'), ('intervenants', 'voir_fiche'),
+        ('intervenants', 'creer'),      ('intervenants', 'modifier'),
+        ('sessions',     'voir_liste'), ('sessions',     'voir_fiche'),
+        ('sessions',     'creer'),      ('sessions',     'modifier'),
+        ('planning',     'voir_liste'), ('participants',  'voir_liste'),
+        ('badges',       'voir_liste'), ('helloasso',     'voir_liste'),
+        ('livret',       'voir_liste'), ('admin',         'voir_liste'),
+    ],
+}
+
+
+@bp.route('/roles/nouveau', methods=['GET', 'POST'])
+@admin_requis
+def role_nouveau():
+    if request.method == 'POST':
+        code    = request.form.get('code', '').strip().lower().replace(' ', '_')
+        libelle = request.form.get('libelle', '').strip()
+        desc    = request.form.get('description', '').strip() or None
+        couleur = request.form.get('couleur_hex', '#6c757d').strip()
+        tpl     = request.form.get('template_permissions', '')
+
+        erreurs = []
+        if not code or not code.replace('_', '').isalnum():
+            erreurs.append('Le code ne doit contenir que des lettres, chiffres et underscores.')
+        if not libelle:
+            erreurs.append('Le libellé est obligatoire.')
+        if not erreurs and query("SELECT code FROM roles WHERE code = ?", (code,), one=True):
+            erreurs.append(f'Le code "{code}" existe déjà.')
+
+        if erreurs:
+            for e in erreurs:
+                flash(e, 'danger')
+            return render_template('admin/role_form.html', role=None,
+                                   templates=list(_PERMISSION_TEMPLATES.keys()))
+
+        try:
+            insert('roles', {'code': code, 'libelle': libelle,
+                             'description': desc, 'couleur_hex': couleur,
+                             'est_systeme': 0, 'ordre': 999})
+            if tpl and tpl in _PERMISSION_TEMPLATES:
+                for module, action in _PERMISSION_TEMPLATES[tpl]:
+                    execute("""
+                        INSERT OR IGNORE INTO permissions (role_code, module, action, champ, autorise)
+                        VALUES (?, ?, ?, NULL, 1)
+                    """, (code, module, action))
+            flash(f'Rôle "{libelle}" créé.', 'success')
+            return redirect(url_for('admin.role_detail', code=code))
+        except Exception as e:
+            flash(f'Erreur : {e}', 'danger')
+
+    return render_template('admin/role_form.html', role=None,
+                           templates=list(_PERMISSION_TEMPLATES.keys()))
+
+
+@bp.route('/roles/<code>')
+@admin_requis
+def role_detail(code):
+    role = query("SELECT * FROM roles WHERE code = ?", (code,), one=True)
+    if not role:
+        flash('Rôle introuvable.', 'danger')
+        return redirect(url_for('admin.roles_liste'))
+    permissions = query("SELECT * FROM permissions WHERE role_code = ? ORDER BY module, action", (code,))
+    utilisateurs = query("""
+        SELECT u.prenom, u.nom, u.email, ur.edition_id, ur.organisation_id,
+               ur.expire_le, ur.id as ur_id
+        FROM utilisateur_roles ur
+        JOIN utilisateurs u ON u.id = ur.utilisateur_id
+        WHERE ur.role_code = ? AND ur.actif = 1
+        ORDER BY u.nom, u.prenom
+    """, (code,))
+    return render_template('admin/role_detail.html',
+                           role=role, permissions=permissions,
+                           utilisateurs=utilisateurs)
+
+
+@bp.route('/roles/<code>/permission', methods=['POST'])
+@admin_requis
+def role_permission_add(code):
+    if not query("SELECT code FROM roles WHERE code = ?", (code,), one=True):
+        flash('Rôle introuvable.', 'danger')
+        return redirect(url_for('admin.roles_liste'))
+    module   = request.form.get('module', '').strip()
+    action   = request.form.get('action', '').strip()
+    champ    = request.form.get('champ', '').strip() or None
+    autorise = 1 if request.form.get('autorise') else 0
+    if not module or not action:
+        flash('Module et action sont obligatoires.', 'danger')
+        return redirect(url_for('admin.role_detail', code=code))
+    execute("""
+        INSERT INTO permissions (role_code, module, action, champ, autorise)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(role_code, module, action, champ) DO UPDATE SET autorise = excluded.autorise
+    """, (code, module, action, champ, autorise))
+    flash('Permission mise à jour.', 'success')
+    return redirect(url_for('admin.role_detail', code=code))
+
+
+@bp.route('/roles/<code>/permission/<int:pid>/supprimer', methods=['POST'])
+@admin_requis
+def role_permission_suppr(code, pid):
+    execute("DELETE FROM permissions WHERE id = ? AND role_code = ?", (pid, code))
+    flash('Permission supprimée.', 'success')
+    return redirect(url_for('admin.role_detail', code=code))
+
+
+@bp.route('/roles/<code>/dupliquer', methods=['GET', 'POST'])
+@admin_requis
+def role_dupliquer(code):
+    source = query("SELECT * FROM roles WHERE code = ?", (code,), one=True)
+    if not source:
+        flash('Rôle introuvable.', 'danger')
+        return redirect(url_for('admin.roles_liste'))
+    if request.method == 'POST':
+        nouveau_code = request.form.get('nouveau_code', '').strip().lower()
+        nouveau_lib  = request.form.get('nouveau_libelle', '').strip()
+        if not nouveau_code or not nouveau_lib:
+            flash('Code et libellé obligatoires.', 'danger')
+            return render_template('admin/role_form.html', role=source,
+                                   duplicating=True, templates=[])
+        if query("SELECT code FROM roles WHERE code = ?", (nouveau_code,), one=True):
+            flash(f'Le code "{nouveau_code}" existe déjà.', 'danger')
+            return render_template('admin/role_form.html', role=source,
+                                   duplicating=True, templates=[])
+        try:
+            insert('roles', {'code': nouveau_code, 'libelle': nouveau_lib,
+                             'description': source['description'],
+                             'couleur_hex': source['couleur_hex'],
+                             'est_systeme': 0, 'ordre': 999})
+            perms = query("SELECT module, action, champ, autorise FROM permissions WHERE role_code = ?", (code,))
+            for p in perms:
+                execute("""
+                    INSERT OR IGNORE INTO permissions (role_code, module, action, champ, autorise)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (nouveau_code, p['module'], p['action'], p['champ'], p['autorise']))
+            flash(f'Rôle dupliqué en "{nouveau_lib}".', 'success')
+            return redirect(url_for('admin.role_detail', code=nouveau_code))
+        except Exception as e:
+            flash(f'Erreur : {e}', 'danger')
+    return render_template('admin/role_form.html', role=source,
+                           duplicating=True, templates=[])
+
 
 @bp.route('/audit')
 @admin_requis

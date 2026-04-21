@@ -13,6 +13,21 @@ bp = Blueprint('auth', __name__, template_folder='templates')
 
 
 # ------------------------------------------------------------------
+# Middleware : changement de mot de passe forcé
+# ------------------------------------------------------------------
+@bp.before_app_request
+def verifier_changement_mdp_requis():
+    if not current_user.is_authenticated:
+        return
+    if not getattr(current_user, 'doit_changer_mdp', False):
+        return
+    # Laisser passer : la page de changement forcé, le logout, et les assets
+    if request.endpoint in ('auth.changer_mdp_force', 'auth.logout', 'static'):
+        return
+    return redirect(url_for('auth.changer_mdp_force'))
+
+
+# ------------------------------------------------------------------
 # Login
 # ------------------------------------------------------------------
 @bp.route('/login', methods=['GET', 'POST'])
@@ -195,6 +210,29 @@ def changer_mot_de_passe():
         return redirect(url_for('dashboard'))
 
     return render_template('auth/changer_mot_de_passe.html')
+
+
+# ------------------------------------------------------------------
+# Changement de mot de passe forcé (première connexion)
+# ------------------------------------------------------------------
+@bp.route('/changer-mdp-force', methods=['GET', 'POST'])
+@login_required
+def changer_mdp_force():
+    if request.method == 'POST':
+        nouveau  = request.form.get('nouveau_mdp', '')
+        confirm  = request.form.get('confirmation_mdp', '')
+        erreurs  = _valider_mot_de_passe(nouveau, confirm)
+        if erreurs:
+            for erreur in erreurs:
+                flash(erreur, 'danger')
+            return render_template('auth/changer_mdp_force.html')
+        current_user.changer_mot_de_passe(nouveau)
+        audit('PASSWORD_CHANGED', utilisateur_id=current_user.id,
+              detail='Premier changement de mot de passe obligatoire',
+              ip_address=request.remote_addr)
+        flash('Mot de passe défini avec succès. Bienvenue !', 'success')
+        return redirect(url_for('dashboard'))
+    return render_template('auth/changer_mdp_force.html')
 
 
 # ------------------------------------------------------------------

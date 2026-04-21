@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Dupliquer' if duplicating else 'Nouveau' }} rôle — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0">
+        {% if duplicating %}
+            Dupliquer le rôle « {{ role.libelle }} »
+        {% else %}
+            Nouveau rôle
+        {% endif %}
+    </h4>
+    <a href="{{ url_for('admin.roles_liste') }}" class="btn btn-outline-secondary btn-sm">← Retour</a>
+</div>
+
+<div class="card">
+    <div class="card-body p-4" style="max-width:560px">
+        <form method="POST">
+            {% if duplicating %}
+            <div class="alert alert-info small mb-3">
+                Toutes les permissions du rôle <strong>{{ role.libelle }}</strong>
+                seront copiées vers le nouveau rôle.
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Nouveau code *</label>
+                <input type="text" class="form-control" name="nouveau_code" required
+                       placeholder="ex: resp_programme_bis"
+                       pattern="[a-z0-9_]+" title="Minuscules, chiffres et underscores seulement">
+                <div class="form-text">Minuscules, chiffres, underscores. Doit être unique.</div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Nouveau libellé *</label>
+                <input type="text" class="form-control" name="nouveau_libelle" required
+                       placeholder="ex: Responsable Programme (bis)">
+            </div>
+            {% else %}
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Code (identifiant technique) *</label>
+                <input type="text" class="form-control" name="code" required
+                       placeholder="ex: resp_programme"
+                       pattern="[a-z0-9_]+" title="Minuscules, chiffres et underscores seulement">
+                <div class="form-text">Minuscules, chiffres, underscores. Ne pourra pas être modifié.</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Libellé *</label>
+                <input type="text" class="form-control" name="libelle" required
+                       placeholder="ex: Responsable Programme">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Description</label>
+                <textarea class="form-control" name="description" rows="2"
+                          placeholder="Décrivez les responsabilités de ce rôle…"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Couleur</label>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="color" class="form-control form-control-color"
+                           name="couleur_hex" value="#6c757d">
+                    <span class="text-muted small">Couleur du badge rôle</span>
+                </div>
+            </div>
+            {% if templates %}
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Permissions initiales</label>
+                <select class="form-select" name="template_permissions">
+                    <option value="">— Aucune permission initiale —</option>
+                    {% for t in templates %}
+                    <option value="{{ t }}">
+                        {% if t == 'lecteur' %}Lecteur — consultation uniquement
+                        {% elif t == 'editeur' %}Éditeur — consultation + modification
+                        {% elif t == 'responsable' %}Responsable — accès complet à la gestion
+                        {% else %}{{ t }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">
+                    Sélectionnez un ensemble de permissions à appliquer automatiquement,
+                    modifiables ensuite depuis la fiche du rôle.
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+
+            <button type="submit" class="btn btn-limoud">
+                {% if duplicating %}Créer la copie{% else %}Créer le rôle{% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

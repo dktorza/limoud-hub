@@ -80,9 +80,18 @@
                     <span class="text-muted">—</span>
                     {% endif %}
                 </td>
-                <td>
+                <td class="text-end">
                     <a href="{{ url_for('intervenants.fiche', iid=i.id) }}"
                        class="btn btn-sm btn-outline-secondary">Voir</a>
+                    {% if peut_modifier and i.email_principal %}
+                    <form method="POST"
+                          action="{{ url_for('intervenants.envoyer_formulaire', iid=i.id) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Envoyer le formulaire à {{ i.email_principal }} ?')">
+                        <button type="submit" class="btn btn-sm btn-outline-primary"
+                                title="Envoyer le formulaire intervenant">✉</button>
+                    </form>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}

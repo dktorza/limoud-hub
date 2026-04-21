@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Définir votre mot de passe — Limoud Hub{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-body p-4">
+                <h4 class="fw-bold mb-1">Première connexion</h4>
+                <p class="text-muted small mb-4">
+                    Votre compte vient d'être créé par un administrateur.<br>
+                    Définissez un mot de passe personnel avant de continuer.
+                </p>
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nouveau mot de passe</label>
+                        <input type="password" class="form-control" name="nouveau_mdp"
+                               required minlength="8" autocomplete="new-password">
+                        <div class="form-text">Au moins 8 caractères.</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Confirmer le mot de passe</label>
+                        <input type="password" class="form-control" name="confirmation_mdp"
+                               required autocomplete="new-password">
+                    </div>
+                    <button type="submit" class="btn btn-limoud w-100">
+                        Définir mon mot de passe
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -5,6 +5,36 @@
     <h4 class="fw-bold mb-0">Nouvel utilisateur</h4>
     <a href="{{ url_for('admin.utilisateurs_liste') }}" class="btn btn-outline-secondary">← Retour</a>
 </div>
+
+{% if mdp_prov %}
+{# Panneau de confirmation après création #}
+<div class="card border-success mb-4">
+    <div class="card-body p-4">
+        <h5 class="fw-bold text-success mb-3">✓ Utilisateur créé : {{ new_nom }}</h5>
+        <p class="mb-2">Communiquez ce mot de passe provisoire à l'utilisateur :</p>
+        <div class="input-group mb-3" style="max-width:420px">
+            <input type="text" id="mdp-prov" class="form-control form-control-lg fw-bold font-monospace"
+                   value="{{ mdp_prov }}" readonly>
+            <button class="btn btn-outline-secondary" type="button"
+                    onclick="navigator.clipboard.writeText('{{ mdp_prov }}').then(()=>{
+                        this.textContent='✓ Copié';
+                        setTimeout(()=>this.textContent='Copier',1500);
+                    })">
+                Copier
+            </button>
+        </div>
+        <p class="text-muted small mb-3">
+            L'utilisateur sera invité à changer ce mot de passe dès sa première connexion.
+        </p>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.utilisateur_roles_edit', uid=new_uid) }}"
+               class="btn btn-limoud">Attribuer des rôles →</a>
+            <a href="{{ url_for('admin.utilisateur_nouveau') }}"
+               class="btn btn-outline-secondary">Créer un autre utilisateur</a>
+        </div>
+    </div>
+</div>
+{% else %}
 <div class="card">
     <div class="card-body p-4" style="max-width:500px">
         <form method="POST">
@@ -25,11 +55,12 @@
                 <input type="text" class="form-control" name="telephone">
             </div>
             <div class="alert alert-info small">
-                Un mot de passe provisoire sera généré automatiquement et affiché après création.
-                L'utilisateur devra le changer à sa première connexion.
+                Un mot de passe provisoire sera généré et affiché ici après création.
+                L'utilisateur sera invité à le changer à sa première connexion.
             </div>
             <button type="submit" class="btn btn-limoud">Créer l'utilisateur</button>
         </form>
     </div>
 </div>
+{% endif %}
 {% endblock %}

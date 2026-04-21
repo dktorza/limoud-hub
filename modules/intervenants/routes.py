@@ -114,6 +114,7 @@ def liste():
     editions    = query("SELECT * FROM editions ORDER BY annee DESC")
     statuts     = query("SELECT * FROM ref_statuts_participation ORDER BY ordre")
     edition_sel = query("SELECT * FROM editions WHERE id=?", (eid,), one=True) if eid else None
+    peut_modifier = current_user.a_permission('intervenants', 'modifier')
 
     return render_template('intervenants/liste.html',
                            intervenants=intervenants,
@@ -123,7 +124,8 @@ def liste():
                            search=search,
                            statut_filtre=statut,
                            page=page, par_page=par_page, total=total,
-                           edition_id=eid)
+                           edition_id=eid,
+                           peut_modifier=peut_modifier)
 
 
 # ------------------------------------------------------------------
@@ -293,6 +295,11 @@ def form(iid=None):
                         'statut_code': 'a_contacter',
                         'created_by': current_user.id,
                     })
+
+                action_btn = request.form.get('action', '').strip()
+                if action_btn == 'create_and_add_session':
+                    flash('Intervenant créé. Créez maintenant sa session.', 'success')
+                    return redirect(url_for('sessions.form', intervenant_id=new_id))
 
                 sid_lien = request.form.get('session_id', '').strip()
                 if sid_lien:

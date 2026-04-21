@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}{{ role.libelle }} — Permissions — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('admin.roles_liste') }}" class="text-muted small">← Rôles</a>
+        <h4 class="fw-bold mb-0 mt-1">
+            <span class="badge me-2" style="background:{{ role.couleur_hex }}">{{ role.libelle }}</span>
+            <small class="text-muted font-monospace fw-normal fs-6">{{ role.code }}</small>
+        </h4>
+        {% if role.description %}
+        <p class="text-muted small mb-0 mt-1">{{ role.description }}</p>
+        {% endif %}
+    </div>
+    <a href="{{ url_for('admin.role_dupliquer', code=role.code) }}"
+       class="btn btn-outline-secondary btn-sm">Dupliquer ce rôle</a>
+</div>
+
+<div class="row g-3">
+
+    <!-- Permissions actuelles -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Permissions ({{ permissions|length }})</h6>
+                {% if permissions %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Module</th><th>Action</th><th>Champ</th><th>Accès</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    {% for module, perms in permissions|groupby('module') %}
+                    {% for p in perms %}
+                    <tr>
+                        {% if loop.first %}<td class="fw-semibold text-nowrap" rowspan="{{ perms|list|length }}">{{ module }}</td>{% endif %}
+                        <td class="font-monospace small">{{ p.action }}</td>
+                        <td class="text-muted small">{{ p.champ or '—' }}</td>
+                        <td>
+                            {% if p.autorise %}
+                            <span class="badge bg-success">✓ Autorisé</span>
+                            {% else %}
+                            <span class="badge bg-danger">✗ Refusé</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <form method="POST"
+                                  action="{{ url_for('admin.role_permission_suppr', code=role.code, pid=p.id) }}"
+                                  style="display:inline"
+                                  onsubmit="return confirm('Supprimer cette permission ?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1">✕</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted small mb-0">Aucune permission configurée.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <!-- Ajouter une permission -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Ajouter / modifier une permission</h6>
+                <form method="POST" action="{{ url_for('admin.role_permission_add', code=role.code) }}">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Module *</label>
+                        <select class="form-select form-select-sm" name="module" required>
+                            <option value="">— Choisir —</option>
+                            {% for mod in ['intervenants','sessions','planning','participants',
+                                           'badges','helloasso','livret','admin'] %}
+                            <option value="{{ mod }}">{{ mod }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Action *</label>
+                        <select class="form-select form-select-sm" name="action" required>
+                            <option value="">— Choisir —</option>
+                            {% for act in ['voir_liste','voir_fiche','creer','modifier','supprimer',
+                                           'exporter','imprimer','voir_contacts'] %}
+                            <option value="{{ act }}">{{ act }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Champ (optionnel)</label>
+                        <input type="text" class="form-control form-control-sm" name="champ"
+                               placeholder="ex: email_principal">
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="autorise" checked>
+                            <label class="form-check-label small">Autorisé (décocher = refusé explicite)</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-limoud btn-sm">Enregistrer</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Utilisateurs avec ce rôle -->
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Utilisateurs ({{ utilisateurs|length }})</h6>
+                {% if utilisateurs %}
+                <ul class="list-unstyled mb-0">
+                    {% for u in utilisateurs %}
+                    <li class="d-flex justify-content-between align-items-center py-1 border-bottom">
+                        <div>
+                            <span class="fw-semibold small">{{ u.prenom }} {{ u.nom }}</span>
+                            {% if u.expire_le %}
+                            <span class="text-muted small ms-1">(exp. {{ u.expire_le[:10] }})</span>
+                            {% endif %}
+                        </div>
+                        <span class="text-muted small">{{ u.email }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted small mb-0">Aucun utilisateur avec ce rôle.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

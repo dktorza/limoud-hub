@@ -27,8 +27,9 @@ class Utilisateur(UserMixin):
         self.mfa_active     = bool(d.get('mfa_active', 0))
         self.mfa_secret     = d.get('mfa_secret')
         self.mfa_telephone  = d.get('mfa_telephone')
-        self.nb_echecs      = d.get('nb_echecs_connexion', 0)
-        self.bloque_jusqu_a = d.get('bloque_jusqu_a')
+        self.nb_echecs        = d.get('nb_echecs_connexion', 0)
+        self.bloque_jusqu_a   = d.get('bloque_jusqu_a')
+        self.doit_changer_mdp = bool(d.get('doit_changer_mdp', 0))
 
     # ------------------------------------------------------------------
     # Flask-Login requis
@@ -144,6 +145,7 @@ class Utilisateur(UserMixin):
             SET password_hash = ?,
                 token_reinit_mdp = NULL,
                 token_reinit_expiry = NULL,
+                doit_changer_mdp = 0,
                 nb_echecs_connexion = 0,
                 bloque_jusqu_a = NULL,
                 updated_at = datetime('now')

@@ -9,7 +9,7 @@
     <a href="{{ url_for('intervenants.liste') }}" class="btn btn-outline-secondary btn-sm">← Retour</a>
 </div>
 
-<form method="POST">
+<form method="POST" id="formIntervenant">
 {% if session_id %}
 <input type="hidden" name="session_id" value="{{ session_id }}">
 {% endif %}
@@ -199,10 +199,16 @@
         </div>
     </div>
 
-    <div class="col-12 d-flex gap-2">
+    <div class="col-12 d-flex gap-2 flex-wrap">
         <button type="submit" class="btn btn-limoud">
             {% if intervenant %}Enregistrer les modifications{% else %}Créer l'intervenant{% endif %}
         </button>
+        {% if not intervenant %}
+        <button type="submit" name="action" value="create_and_add_session"
+                class="btn btn-outline-primary">
+            Créer et ajouter une session
+        </button>
+        {% endif %}
         <a href="{{ url_for('intervenants.liste') }}" class="btn btn-outline-secondary">Annuler</a>
     </div>
 </div>
