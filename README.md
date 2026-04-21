@@ -6,7 +6,7 @@
 
 ---
 
-## Installation de base et d'origine sur O2Switch
+## Installation sur O2Switch
 
 ### 1. Créer le sous-domaine
 
