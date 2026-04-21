@@ -48,8 +48,19 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small fw-semibold">Durée (min)</label>
+                        {% if durees %}
+                        <select class="form-select form-select-sm" name="duree_minutes">
+                            {% for d in durees %}
+                            <option value="{{ d.duree_min }}"
+                                {% if session and session.duree_minutes == d.duree_min %}selected{% elif not session and loop.first %}selected{% endif %}>
+                                {{ d.libelle }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
                         <input type="number" class="form-control form-control-sm" name="duree_minutes"
                                value="{{ session.duree_minutes if session else 60 }}" min="15" step="15">
+                        {% endif %}
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small fw-semibold">Statut</label>

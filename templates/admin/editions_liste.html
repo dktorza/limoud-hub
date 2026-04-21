@@ -22,7 +22,10 @@
                         {{ e.statut_libelle or e.statut_code }}
                     </span>
                 </td>
-                <td><a href="#" class="btn btn-sm btn-outline-secondary">Modifier</a></td>
+                <td class="text-end">
+                    <a href="{{ url_for('admin.edition_durees', eid=e.id) }}" class="btn btn-sm btn-outline-primary">Durées</a>
+                    <a href="#" class="btn btn-sm btn-outline-secondary">Modifier</a>
+                </td>
             </tr>
             {% else %}
             <tr><td colspan="5" class="text-center text-muted py-4">Aucune édition — créez-en une !</td></tr>

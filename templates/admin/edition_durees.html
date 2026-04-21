@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Durées — {{ edition.nom }} — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Durées de session</h4>
+        <p class="text-muted small mb-0">{{ edition.nom }}</p>
+    </div>
+    <a href="{{ url_for('admin.editions_liste') }}" class="btn btn-outline-secondary btn-sm">← Retour</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Durées configurées</h6>
+                {% if durees %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Ordre</th><th>Libellé</th><th>Minutes</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    {% for d in durees %}
+                    <tr>
+                        <td class="text-muted">{{ d.ordre }}</td>
+                        <td>{{ d.libelle }}</td>
+                        <td>{{ d.duree_min }} min</td>
+                        <td class="text-end">
+                            <form method="POST" style="display:inline">
+                                <input type="hidden" name="action" value="supprimer">
+                                <input type="hidden" name="duree_id" value="{{ d.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Supprimer cette durée ?')">Supprimer</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted small mb-0">Aucune durée configurée — le formulaire de session affichera un champ libre.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Ajouter une durée</h6>
+                <form method="POST">
+                    <input type="hidden" name="action" value="ajouter">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Libellé *</label>
+                        <input type="text" class="form-control form-control-sm" name="libelle"
+                               placeholder="Ex: 1h30" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Durée en minutes *</label>
+                        <input type="number" class="form-control form-control-sm" name="duree_min"
+                               min="1" step="1" placeholder="Ex: 90" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Ordre d'affichage</label>
+                        <input type="number" class="form-control form-control-sm" name="ordre"
+                               value="0" min="0">
+                    </div>
+                    <button type="submit" class="btn btn-limoud btn-sm">Ajouter</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

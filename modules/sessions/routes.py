@@ -41,6 +41,12 @@ def liste():
     par_page = 25
     offset  = (page - 1) * par_page
 
+    durees = query("""
+        SELECT * FROM ref_durees_session
+        WHERE edition_id = ? AND actif = 1
+        ORDER BY ordre, duree_min
+    """, (eid or 0,))
+
     conditions = ['s.edition_id = ?']
     params     = [eid or 0]
 
@@ -206,6 +212,12 @@ def form(sid=None):
 
     eid = edition_courante_id()
 
+    durees = query("""
+        SELECT * FROM ref_durees_session
+        WHERE edition_id = ? AND actif = 1
+        ORDER BY ordre, duree_min
+    """, (eid or 0,))
+
     if request.method == 'POST':
         eid_form = int(request.form.get('edition_id', eid or 0))
         data = {
@@ -273,7 +285,7 @@ def form(sid=None):
                            themes=themes, formats=formats,
                            langues=langues, niveaux=niveaux, statuts=statuts,
                            editions=editions, edition_sel=edition_sel,
-                           edition_id=eid)
+                           edition_id=eid, durees=durees)
 
 
 # ------------------------------------------------------------------

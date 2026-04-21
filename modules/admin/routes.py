@@ -126,6 +126,41 @@ def edition_nouvelle():
     organisations = query("SELECT * FROM organisations WHERE actif=1")
     return render_template('admin/edition_form.html', edition=None, organisations=organisations)
 
+@bp.route('/editions/<int:eid>/durees', methods=['GET', 'POST'])
+@admin_requis
+def edition_durees(eid):
+    edition = query("SELECT * FROM editions WHERE id=?", (eid,), one=True)
+    if not edition:
+        flash('Édition introuvable.', 'danger')
+        return redirect(url_for('admin.editions_liste'))
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'ajouter':
+            duree_min = request.form.get('duree_min', '').strip()
+            libelle   = request.form.get('libelle', '').strip()
+            ordre     = request.form.get('ordre', '0').strip() or '0'
+            if not duree_min or not libelle:
+                flash('La durée (minutes) et le libellé sont obligatoires.', 'danger')
+            else:
+                try:
+                    insert('ref_durees_session', {
+                        'edition_id': eid,
+                        'duree_min':  int(duree_min),
+                        'libelle':    libelle,
+                        'ordre':      int(ordre),
+                        'actif':      1,
+                    })
+                    flash('Durée ajoutée.', 'success')
+                except Exception as e:
+                    flash(f'Erreur : {e}', 'danger')
+        elif action == 'supprimer':
+            did = request.form.get('duree_id')
+            execute("DELETE FROM ref_durees_session WHERE id=? AND edition_id=?", (did, eid))
+            flash('Durée supprimée.', 'success')
+        return redirect(url_for('admin.edition_durees', eid=eid))
+    durees = query("SELECT * FROM ref_durees_session WHERE edition_id=? ORDER BY ordre, duree_min", (eid,))
+    return render_template('admin/edition_durees.html', edition=edition, durees=durees)
+
 @bp.route('/audit')
 @admin_requis
 def audit_log():
