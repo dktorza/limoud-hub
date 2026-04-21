@@ -31,15 +31,12 @@
 <nav id="sidebar">
     <div class="sidebar-brand">
         <span class="fs-5 fw-bold text-white">Limoud Hub</span>
-        {% if edition_selectionnee %}
-        <div class="mt-1">
-            <a href="{{ url_for('intervenants.liste') }}"
-               class="text-white-50 small text-decoration-none"
-               style="font-size:.78rem">
-                📅 {{ edition_selectionnee.nom }}
-            </a>
+    </div>
+    <div class="px-3 py-2" style="border-bottom:1px solid rgba(255,255,255,.15)">
+        <div class="text-white-50" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em">Édition</div>
+        <div class="text-white fw-semibold small">
+            📅 {{ edition_selectionnee.nom if edition_selectionnee else 'Aucune' }}
         </div>
-        {% endif %}
     </div>
     <div class="py-2">
         <div class="nav-section">Tableau de bord</div>
@@ -109,8 +106,28 @@
         {% if current_user.a_permission('admin', 'voir_liste') %}
         <div class="nav-section">Administration</div>
         <a href="{{ url_for('admin.tableau_de_bord') }}" class="nav-link
-            {% if request.blueprint == 'admin' %}active{% endif %}">
-            <i class="bi bi-gear me-1"></i> Administration
+            {% if request.endpoint == 'admin.tableau_de_bord' %}active{% endif %}">
+            <i class="bi bi-speedometer2 me-1"></i> Tableau de bord
+        </a>
+        <a href="{{ url_for('admin.utilisateurs_liste') }}" class="nav-link
+            {% if request.endpoint and 'utilisateur' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-people me-1"></i> Utilisateurs
+        </a>
+        <a href="{{ url_for('admin.roles_liste') }}" class="nav-link
+            {% if request.endpoint and 'role' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-shield-check me-1"></i> Rôles
+        </a>
+        <a href="{{ url_for('admin.organisations_liste') }}" class="nav-link
+            {% if request.endpoint and 'organisation' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-building me-1"></i> Organisations
+        </a>
+        <a href="{{ url_for('admin.editions_liste') }}" class="nav-link
+            {% if request.endpoint and 'edition' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-calendar3 me-1"></i> Éditions
+        </a>
+        <a href="{{ url_for('admin.parametres') }}" class="nav-link
+            {% if request.endpoint == 'admin.parametres' %}active{% endif %}">
+            <i class="bi bi-sliders me-1"></i> Paramètres
         </a>
         {% endif %}
     </div>

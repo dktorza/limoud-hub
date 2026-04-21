@@ -61,12 +61,14 @@ def init_db(app):
 def query(sql, params=(), one=False):
     """
     Execute une requête SELECT.
-    - one=True  → retourne une seule ligne (ou None)
-    - one=False → retourne une liste de lignes
+    - one=True  → retourne un dict (ou None)
+    - one=False → retourne une liste de dicts
     """
     cur = get_db().execute(sql, params)
-    result = cur.fetchone() if one else cur.fetchall()
-    return result
+    if one:
+        row = cur.fetchone()
+        return dict(row) if row else None
+    return [dict(r) for r in cur.fetchall()]
 
 
 def execute(sql, params=()):

@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Organisations — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0">Organisations ({{ organisations|length }})</h4>
+    <a href="{{ url_for('admin.organisation_nouvelle') }}" class="btn btn-limoud">
+        + Nouvelle organisation
+    </a>
+</div>
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Nom</th>
+                    <th>Ville</th>
+                    <th class="text-center">Éditions</th>
+                    <th class="text-center">Utilisateurs</th>
+                    <th class="text-center">Statut</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for o in organisations %}
+            <tr>
+                <td>
+                    <div class="fw-semibold">{{ o.nom }}</div>
+                    <div class="text-muted small font-monospace">{{ o.slug }}</div>
+                </td>
+                <td class="text-muted">{{ o.ville or '—' }}</td>
+                <td class="text-center">
+                    {% if o.nb_editions > 0 %}
+                    <span class="badge bg-primary">{{ o.nb_editions }}</span>
+                    {% else %}
+                    <span class="text-muted small">0</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if o.nb_utilisateurs > 0 %}
+                    <span class="badge bg-secondary">{{ o.nb_utilisateurs }}</span>
+                    {% else %}
+                    <span class="text-muted small">0</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    {% if o.actif %}
+                    <span class="badge bg-success">Active</span>
+                    {% else %}
+                    <span class="badge bg-danger">Inactive</span>
+                    {% endif %}
+                </td>
+                <td class="text-end d-flex gap-1 justify-content-end">
+                    <a href="{{ url_for('admin.organisation_modifier', oid=o.id) }}"
+                       class="btn btn-sm btn-outline-secondary">Modifier</a>
+                    <a href="{{ url_for('admin.editions_liste') }}"
+                       class="btn btn-sm btn-outline-primary">Éditions</a>
+                    {% if o.actif %}
+                    <form method="POST"
+                          action="{{ url_for('admin.organisation_desactiver', oid=o.id) }}"
+                          onsubmit="return confirm('Désactiver {{ o.nom }} ?')"
+                          style="display:inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Désactiver</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                    Aucune organisation.
+                    <a href="{{ url_for('admin.organisation_nouvelle') }}">Créer la première ?</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -139,27 +139,43 @@ def utilisateur_roles_edit(uid):
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'ajouter_role':
-            try:
-                insert('utilisateur_roles', {
-                    'utilisateur_id': uid,
-                    'role_code': request.form.get('role_code'),
-                    'organisation_id': request.form.get('organisation_id') or None,
-                    'edition_id': request.form.get('edition_id') or None,
-                    'actif': 1, 'attribue_par': current_user.id,
-                    'expire_le': request.form.get('expire_le') or None,
-                })
-                flash('Rôle ajouté.', 'success')
-            except Exception as e:
-                flash(f'Erreur : {e}', 'danger')
+            role_code = request.form.get('role_code')
+            roles_ok = _roles_attribuables(current_user)
+            if role_code not in roles_ok:
+                flash('Vous ne pouvez pas attribuer un rôle supérieur au vôtre.', 'danger')
+            else:
+                try:
+                    insert('utilisateur_roles', {
+                        'utilisateur_id': uid,
+                        'role_code': role_code,
+                        'organisation_id': request.form.get('organisation_id') or None,
+                        'edition_id': request.form.get('edition_id') or None,
+                        'actif': 1, 'attribue_par': current_user.id,
+                        'expire_le': request.form.get('expire_le') or None,
+                    })
+                    flash('Rôle ajouté.', 'success')
+                except Exception as e:
+                    flash(f'Erreur : {e}', 'danger')
         elif action == 'supprimer_role':
             execute("UPDATE utilisateur_roles SET actif=0 WHERE id=?", (request.form.get('role_id'),))
             flash('Rôle retiré.', 'success')
         return redirect(url_for('admin.utilisateur_roles_edit', uid=uid))
-    roles_utilisateur = query("SELECT ur.*, r.libelle, r.couleur_hex, o.nom as org_nom, e.nom as edition_nom FROM utilisateur_roles ur JOIN roles r ON r.code = ur.role_code LEFT JOIN organisations o ON o.id = ur.organisation_id LEFT JOIN editions e ON e.id = ur.edition_id WHERE ur.utilisateur_id = ? AND ur.actif = 1", (uid,))
+
+    roles_utilisateur = query("""
+        SELECT ur.*, r.libelle, r.couleur_hex, o.nom as org_nom, e.nom as edition_nom
+        FROM utilisateur_roles ur
+        JOIN roles r ON r.code = ur.role_code
+        LEFT JOIN organisations o ON o.id = ur.organisation_id
+        LEFT JOIN editions e ON e.id = ur.edition_id
+        WHERE ur.utilisateur_id = ? AND ur.actif = 1
+    """, (uid,))
+    codes_attribuables = _roles_attribuables(current_user)
+    tous_les_roles = [r for r in query("SELECT * FROM roles ORDER BY ordre")
+                      if r['code'] in codes_attribuables]
     return render_template('admin/utilisateur_roles.html',
         utilisateur=utilisateur,
         roles_utilisateur=roles_utilisateur,
-        tous_les_roles=query("SELECT * FROM roles ORDER BY ordre"),
+        tous_les_roles=tous_les_roles,
         toutes_les_orgas=query("SELECT * FROM organisations WHERE actif=1"),
         toutes_les_editions=query("SELECT * FROM editions ORDER BY annee DESC"))
 
@@ -412,3 +428,181 @@ def audit_log():
 @admin_requis
 def references_liste():
     return render_template('admin/references_liste.html')
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ORGANISATIONS
+# ──────────────────────────────────────────────────────────────────────────────
+
+@bp.route('/organisations')
+@admin_requis
+def organisations_liste():
+    organisations = query("""
+        SELECT o.*,
+               COUNT(DISTINCT e.id)  as nb_editions,
+               COUNT(DISTINCT ur.utilisateur_id) as nb_utilisateurs
+        FROM organisations o
+        LEFT JOIN editions e ON e.organisation_id = o.id
+        LEFT JOIN utilisateur_roles ur ON ur.organisation_id = o.id AND ur.actif = 1
+        GROUP BY o.id
+        ORDER BY o.nom
+    """)
+    return render_template('admin/organisations_liste.html', organisations=organisations)
+
+
+@bp.route('/organisations/nouvelle', methods=['GET', 'POST'])
+@admin_requis
+def organisation_nouvelle():
+    if request.method == 'POST':
+        nom    = request.form.get('nom', '').strip()
+        slug   = request.form.get('slug', '').strip().lower().replace(' ', '-')
+        ville  = request.form.get('ville', '').strip() or None
+        pays   = request.form.get('pays', 'France').strip()
+        email  = request.form.get('email_contact', '').strip() or None
+        site   = request.form.get('site_web', '').strip() or None
+        if not nom or not slug:
+            flash('Nom et slug sont obligatoires.', 'danger')
+        elif query("SELECT id FROM organisations WHERE slug=?", (slug,), one=True):
+            flash(f'Le slug "{slug}" existe déjà.', 'danger')
+        else:
+            try:
+                oid = insert('organisations', {
+                    'nom': nom, 'slug': slug, 'ville': ville,
+                    'pays': pays, 'email_contact': email,
+                    'site_web': site, 'actif': 1,
+                })
+                flash(f'Organisation "{nom}" créée.', 'success')
+                return redirect(url_for('admin.organisation_modifier', oid=oid))
+            except Exception as e:
+                flash(f'Erreur : {e}', 'danger')
+    return render_template('admin/organisation_form.html', organisation=None)
+
+
+@bp.route('/organisations/<int:oid>/modifier', methods=['GET', 'POST'])
+@admin_requis
+def organisation_modifier(oid):
+    organisation = query("SELECT * FROM organisations WHERE id=?", (oid,), one=True)
+    if not organisation:
+        flash('Organisation introuvable.', 'danger')
+        return redirect(url_for('admin.organisations_liste'))
+
+    if request.method == 'POST':
+        nom   = request.form.get('nom', '').strip()
+        slug  = request.form.get('slug', '').strip().lower()
+        ville = request.form.get('ville', '').strip() or None
+        pays  = request.form.get('pays', 'France').strip()
+        email = request.form.get('email_contact', '').strip() or None
+        site  = request.form.get('site_web', '').strip() or None
+        actif = 1 if request.form.get('actif') else 0
+        # Slug doit être unique sauf pour cette orga
+        existing = query("SELECT id FROM organisations WHERE slug=? AND id != ?", (slug, oid), one=True)
+        if not nom or not slug:
+            flash('Nom et slug sont obligatoires.', 'danger')
+        elif existing:
+            flash(f'Le slug "{slug}" existe déjà.', 'danger')
+        else:
+            try:
+                execute("""
+                    UPDATE organisations
+                    SET nom=?, slug=?, ville=?, pays=?, email_contact=?,
+                        site_web=?, actif=?, updated_at=datetime('now')
+                    WHERE id=?
+                """, (nom, slug, ville, pays, email, site, actif, oid))
+                flash('Organisation mise à jour.', 'success')
+                return redirect(url_for('admin.organisations_liste'))
+            except Exception as e:
+                flash(f'Erreur : {e}', 'danger')
+
+    editions = query("SELECT * FROM editions WHERE organisation_id=? ORDER BY annee DESC", (oid,))
+    utilisateurs = query("""
+        SELECT DISTINCT u.id, u.prenom, u.nom, u.email
+        FROM utilisateur_roles ur
+        JOIN utilisateurs u ON u.id = ur.utilisateur_id
+        WHERE ur.organisation_id = ? AND ur.actif = 1
+        ORDER BY u.nom, u.prenom
+    """, (oid,))
+    return render_template('admin/organisation_form.html',
+                           organisation=organisation,
+                           editions=editions,
+                           utilisateurs=utilisateurs)
+
+
+@bp.route('/organisations/<int:oid>/desactiver', methods=['POST'])
+@admin_requis
+def organisation_desactiver(oid):
+    execute("UPDATE organisations SET actif=0, updated_at=datetime('now') WHERE id=?", (oid,))
+    flash('Organisation désactivée.', 'success')
+    return redirect(url_for('admin.organisations_liste'))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PARAMÈTRES & TEST SMTP
+# ──────────────────────────────────────────────────────────────────────────────
+
+@bp.route('/parametres', methods=['GET', 'POST'])
+@admin_requis
+def parametres():
+    from flask import current_app
+    cfg = current_app.config
+    resultat_test = None
+
+    if request.method == 'POST' and request.form.get('action') == 'test_email':
+        import smtplib
+        from email.mime.text import MIMEText
+        destinataire = request.form.get('destinataire', '').strip()
+        if not destinataire:
+            flash('Adresse destinataire requise.', 'danger')
+        else:
+            try:
+                msg = MIMEText(
+                    "Ceci est un email de test envoyé depuis Limoud Hub.\n"
+                    "Si vous recevez ce message, la configuration SMTP fonctionne correctement.",
+                    'plain', 'utf-8'
+                )
+                msg['From']    = cfg.get('MAIL_FROM', '')
+                msg['To']      = destinataire
+                msg['Subject'] = "Test SMTP — Limoud Hub"
+                with smtplib.SMTP_SSL(cfg['MAIL_SERVER'], cfg['MAIL_PORT']) as srv:
+                    srv.login(cfg['MAIL_USERNAME'], cfg['MAIL_PASSWORD'])
+                    srv.sendmail(cfg['MAIL_FROM'], destinataire, msg.as_string())
+                resultat_test = {'ok': True, 'message': f'Email envoyé à {destinataire}'}
+            except Exception as e:
+                resultat_test = {'ok': False, 'message': str(e)}
+
+    # Stats base de données
+    import os
+    db_path = cfg.get('DATABASE_PATH', '')
+    db_taille = None
+    if db_path and os.path.exists(db_path):
+        db_taille = round(os.path.getsize(db_path) / 1024, 1)
+
+    tables_stats = []
+    for table in ['utilisateurs', 'intervenants', 'sessions', 'participants',
+                  'editions', 'organisations', 'permissions', 'audit_log']:
+        try:
+            row = query(f"SELECT COUNT(*) as n FROM {table}", one=True)
+            tables_stats.append({'table': table, 'count': row['n'] if row else 0})
+        except Exception:
+            tables_stats.append({'table': table, 'count': '—'})
+
+    return render_template('admin/parametres.html',
+                           cfg=cfg,
+                           db_taille=db_taille,
+                           tables_stats=tables_stats,
+                           resultat_test=resultat_test)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CONTRAINTE : pas de privilege escalation dans l'attribution des rôles
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _roles_attribuables(par_utilisateur):
+    """
+    Retourne la liste des role_codes que cet utilisateur peut attribuer.
+    super_admin → tous les rôles.
+    Sinon → uniquement les rôles qu'il possède lui-même.
+    """
+    if par_utilisateur._a_role('super_admin'):
+        return [r['code'] for r in query("SELECT code FROM roles ORDER BY ordre")]
+    roles_perso = par_utilisateur._get_roles_actifs()
+    return [r['role_code'] for r in roles_perso]

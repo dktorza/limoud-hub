@@ -24,6 +24,7 @@
             <div class="fs-1">🏛️</div>
             <div class="fw-semibold">{{ stats.nb_organisations }}</div>
             <div class="text-muted small">Organisations</div>
+            <a href="{{ url_for('admin.organisations_liste') }}" class="btn btn-limoud btn-sm mt-2">Gérer</a>
         </div>
     </div>
     <div class="col-md-3">
@@ -34,5 +35,10 @@
             <a href="{{ url_for('admin.editions_liste') }}" class="btn btn-limoud btn-sm mt-2">Gérer</a>
         </div>
     </div>
+</div>
+<div class="mt-3">
+    <a href="{{ url_for('admin.parametres') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-sliders"></i> Paramètres & SMTP
+    </a>
 </div>
 {% endblock %}

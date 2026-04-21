@@ -221,17 +221,46 @@ class Utilisateur(UserMixin):
         return any(r['role_code'] == role_code for r in roles)
 
     def _get_roles_actifs(self, organisation_id=None, edition_id=None):
-        """Retourne tous les rôles actifs et non expirés pour ce contexte."""
-        return query("""
-            SELECT role_code FROM utilisateur_roles
-            WHERE utilisateur_id = ?
-            AND actif = 1
-            AND (expire_le IS NULL OR expire_le > datetime('now'))
-            AND (organisation_id IS NULL OR organisation_id = ?)
-            AND (edition_id IS NULL OR edition_id = ?)
-        """, (self.id,
-              organisation_id or -1,
-              edition_id or -1))
+        """Retourne tous les rôles actifs et non expirés pour ce contexte.
+
+        Un rôle s'applique si :
+        - global (organisation_id IS NULL ET edition_id IS NULL), OU
+        - rattaché à cette organisation (toutes éditions), OU
+        - rattaché à cette organisation ET cette édition, OU
+        - rattaché globalement à cette édition seulement.
+        """
+        if organisation_id and edition_id:
+            return query("""
+                SELECT DISTINCT role_code FROM utilisateur_roles
+                WHERE utilisateur_id = ? AND actif = 1
+                AND (expire_le IS NULL OR expire_le > datetime('now'))
+                AND (
+                    (organisation_id IS NULL AND edition_id IS NULL)
+                    OR (organisation_id = ? AND edition_id IS NULL)
+                    OR (organisation_id = ? AND edition_id = ?)
+                    OR (organisation_id IS NULL AND edition_id = ?)
+                )
+            """, (self.id, organisation_id, organisation_id, edition_id, edition_id))
+        elif organisation_id:
+            return query("""
+                SELECT DISTINCT role_code FROM utilisateur_roles
+                WHERE utilisateur_id = ? AND actif = 1
+                AND (expire_le IS NULL OR expire_le > datetime('now'))
+                AND (organisation_id IS NULL OR organisation_id = ?)
+            """, (self.id, organisation_id))
+        elif edition_id:
+            return query("""
+                SELECT DISTINCT role_code FROM utilisateur_roles
+                WHERE utilisateur_id = ? AND actif = 1
+                AND (expire_le IS NULL OR expire_le > datetime('now'))
+                AND (edition_id IS NULL OR edition_id = ?)
+            """, (self.id, edition_id))
+        else:
+            return query("""
+                SELECT DISTINCT role_code FROM utilisateur_roles
+                WHERE utilisateur_id = ? AND actif = 1
+                AND (expire_le IS NULL OR expire_le > datetime('now'))
+            """, (self.id,))
 
     def get_roles(self, organisation_id=None, edition_id=None):
         """Retourne la liste des rôles de l'utilisateur (pour affichage)."""

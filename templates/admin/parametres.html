@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}Paramètres — Limoud Hub{% endblock %}
+{% block content %}
+<h4 class="fw-bold mb-4">Paramètres</h4>
+
+<div class="row g-3">
+
+    <!-- SMTP -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Configuration SMTP</h6>
+                <table class="table table-sm mb-4">
+                    <tr><th style="width:40%">Serveur</th><td class="font-monospace">{{ cfg.get('MAIL_SERVER', '—') }}</td></tr>
+                    <tr><th>Port</th><td class="font-monospace">{{ cfg.get('MAIL_PORT', '—') }}</td></tr>
+                    <tr><th>Utilisateur</th><td class="font-monospace">{{ cfg.get('MAIL_USERNAME', '—') }}</td></tr>
+                    <tr><th>Expéditeur</th><td class="font-monospace">{{ cfg.get('MAIL_FROM', '—') }}</td></tr>
+                    <tr><th>Mot de passe</th><td class="text-muted">••••••••</td></tr>
+                </table>
+
+                <h6 class="fw-bold mb-2">Tester l'envoi</h6>
+
+                {% if resultat_test %}
+                <div class="alert {{ 'alert-success' if resultat_test.ok else 'alert-danger' }} small mb-3">
+                    {{ '✓ ' if resultat_test.ok else '✗ ' }}{{ resultat_test.message }}
+                </div>
+                {% endif %}
+
+                <form method="POST">
+                    <input type="hidden" name="action" value="test_email">
+                    <div class="input-group">
+                        <input type="email" class="form-control form-control-sm"
+                               name="destinataire" placeholder="adresse@exemple.com" required>
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            Envoyer un test
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Base de données -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Base de données</h6>
+                {% if db_taille is not none %}
+                <p class="small text-muted mb-3">
+                    Taille du fichier SQLite : <strong>{{ db_taille }} Ko</strong>
+                </p>
+                {% endif %}
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr><th>Table</th><th class="text-end">Lignes</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for t in tables_stats %}
+                    <tr>
+                        <td class="font-monospace small">{{ t.table }}</td>
+                        <td class="text-end">
+                            <span class="badge bg-secondary">{{ t.count }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations application -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Application</h6>
+                <table class="table table-sm mb-0">
+                    <tr><th style="width:30%">Nom</th><td>{{ cfg.get('APP_NAME', 'Limoud Hub') }}</td></tr>
+                    <tr><th>Environnement</th><td class="font-monospace">{{ cfg.get('ENV', '—') }}</td></tr>
+                    <tr><th>Debug</th><td>{{ 'Activé' if cfg.get('DEBUG') else 'Désactivé' }}</td></tr>
+                    <tr><th>Base de données</th><td class="font-monospace small">{{ cfg.get('DATABASE_PATH', '—') }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
