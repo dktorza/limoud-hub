@@ -46,9 +46,19 @@
                     {% endif %}
                 </td>
                 <td class="text-muted small">{{ u.derniere_connexion_at or '—' }}</td>
-                <td class="text-end">
+                <td class="text-end d-flex gap-1 justify-content-end">
+                    <a href="{{ url_for('admin.utilisateur_modifier', uid=u.id) }}"
+                       class="btn btn-sm btn-outline-secondary">Modifier</a>
                     <a href="{{ url_for('admin.utilisateur_roles_edit', uid=u.id) }}"
-                       class="btn btn-sm btn-limoud">Modifier les rôles</a>
+                       class="btn btn-sm btn-limoud">Rôles</a>
+                    {% if u.id != current_user.id and u.actif %}
+                    <form method="POST"
+                          action="{{ url_for('admin.utilisateur_desactiver', uid=u.id) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Désactiver {{ u.prenom }} {{ u.nom }} ?')">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Désactiver</button>
+                    </form>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

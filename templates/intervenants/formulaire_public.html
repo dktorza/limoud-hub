@@ -7,10 +7,16 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background:#f4f6f9; font-family:'Segoe UI',sans-serif; }
-        .form-card { max-width:680px; margin:2rem auto; }
+        .form-card { max-width:720px; margin:2rem auto; padding:0 1rem; }
         .logo-band { background:#1a5276; color:#fff; padding:1.25rem 1.5rem; border-radius:.5rem .5rem 0 0; }
         .logo-band h1 { font-size:1.4rem; margin:0; font-weight:700; }
-        .logo-band p  { margin:0; opacity:.75; font-size:.9rem; }
+        .logo-band p  { margin:.25rem 0 0; opacity:.75; font-size:.9rem; }
+        .step-bar { display:flex; gap:0; }
+        .step-bar .step { flex:1; text-align:center; padding:.5rem .25rem; font-size:.8rem;
+                          border-bottom:3px solid #dee2e6; color:#6c757d; font-weight:500; }
+        .step-bar .step.active { border-color:#1a5276; color:#1a5276; font-weight:700; }
+        .step-bar .step.done { border-color:#28a745; color:#28a745; }
+        .session-card { background:#f8f9fa; border:1px solid #dee2e6; border-radius:.5rem; }
     </style>
 </head>
 <body>
@@ -20,151 +26,316 @@
         <p>Formulaire intervenant</p>
     </div>
     <div class="card" style="border-radius:0 0 .5rem .5rem; border:none; box-shadow:0 2px 8px rgba(0,0,0,.1)">
+
+    {% if erreur %}
         <div class="card-body p-4">
+            <div class="alert alert-danger mb-0">{{ erreur }}</div>
+        </div>
 
-        {% if erreur %}
-            <div class="alert alert-danger">{{ erreur }}</div>
+    {% elif confirme %}
+        <div class="card-body p-4 text-center py-5">
+            <div class="fs-1 text-success mb-3">✓</div>
+            <h4 class="fw-bold">Merci {{ tok.prenom }} !</h4>
+            <p class="text-muted">Votre fiche et vos sessions ont bien été enregistrées.<br>
+            L'équipe Limoud vous contactera prochainement.</p>
+        </div>
 
-        {% elif confirme %}
-            <div class="text-center py-4">
-                <div class="fs-1 text-success mb-3">✓</div>
-                <h4 class="fw-bold">Merci !</h4>
-                <p class="text-muted">Votre fiche a bien été enregistrée. L'équipe Limoud vous contactera prochainement.</p>
+    {% else %}
+
+        {# Barre de progression #}
+        <div class="step-bar px-0">
+            <div class="step {{ 'active' if etape == 1 else 'done' if etape > 1 else '' }}">
+                {{ '✓ ' if etape > 1 else '' }}1. Identité
+            </div>
+            <div class="step {{ 'active' if etape == 2 else 'done' if etape > 2 else '' }}">
+                {{ '✓ ' if etape > 2 else '' }}2. Sessions
+            </div>
+            <div class="step {{ 'active' if etape == 3 else '' }}">
+                3. Confirmation
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+        <p class="text-muted mb-4">
+            Bonjour <strong>{{ tok.prenom }} {{ tok.nom }}</strong> —
+            {% if etape == 1 %}complétez votre fiche publique.
+            {% elif etape == 2 %}proposez vos sessions pour cette édition.
+            {% else %}vérifiez et confirmez votre participation.{% endif %}
+        </p>
+
+        {# ── ÉTAPE 1 : Identité ──────────────────────────────── #}
+        {% if etape == 1 %}
+        <form method="POST" action="{{ url_for('intervenants.formulaire_public', token=token, etape=1) }}">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Civilité</label>
+                <select class="form-select" name="civilite_code">
+                    <option value="">—</option>
+                    {% for c in civilites %}
+                    <option value="{{ c.code }}" {% if tok.civilite_code == c.code %}selected{% endif %}>
+                        {{ c.libelle }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Nom d'affichage (livret)</label>
+                <input type="text" class="form-control" name="nom_affichage"
+                       value="{{ tok.nom_affichage or '' }}"
+                       placeholder="Ex : Pr. Dupont ou Sarah Cohen">
+                <div class="form-text">Laissez vide pour utiliser votre prénom et nom.</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Fonction / Titre</label>
+                <input type="text" class="form-control" name="fonction_titre"
+                       value="{{ tok.fonction_titre or '' }}"
+                       placeholder="Ex : Rabbin, Professeur de philosophie…">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Biographie courte</label>
+                <textarea class="form-control" name="mini_bio" rows="4"
+                          placeholder="Quelques lignes sur votre parcours (500 car. max)">{{ tok.mini_bio or '' }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Spécialités / Domaines</label>
+                <input type="text" class="form-control" name="specialites"
+                       value="{{ tok.specialites or '' }}"
+                       placeholder="Ex : Kabbale, Éthique, Littérature hébraïque">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Institutions / Affiliations</label>
+                <input type="text" class="form-control" name="institutions"
+                       value="{{ tok.institutions or '' }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Œuvres & Publications</label>
+                <textarea class="form-control" name="oeuvres_publications" rows="3"
+                          placeholder="Titres de vos ouvrages, articles…">{{ tok.oeuvres_publications or '' }}</textarea>
             </div>
 
-        {% else %}
-            <p class="text-muted mb-4">
-                Bonjour <strong>{{ tok.prenom }} {{ tok.nom }}</strong>,<br>
-                merci de compléter les informations ci-dessous. Seules les données publiques sont demandées.
-            </p>
+            <hr>
+            <h6 class="fw-bold mb-3">Présence en ligne</h6>
+            <div class="mb-3">
+                <label class="form-label">Site web</label>
+                <input type="url" class="form-control" name="site_web"
+                       value="{{ tok.site_web or '' }}" placeholder="https://…">
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-sm-4">
+                    <label class="form-label">Twitter / X</label>
+                    <input type="text" class="form-control" name="twitter"
+                           value="{{ tok.twitter or '' }}" placeholder="@pseudo">
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label">Instagram</label>
+                    <input type="text" class="form-control" name="instagram"
+                           value="{{ tok.instagram or '' }}" placeholder="@pseudo">
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label">LinkedIn</label>
+                    <input type="text" class="form-control" name="linkedin"
+                           value="{{ tok.linkedin or '' }}">
+                </div>
+            </div>
 
-            <form method="POST">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Civilité</label>
-                    <select class="form-select" name="civilite_code">
-                        <option value="">—</option>
-                        {% for c in civilites %}
-                        <option value="{{ c.code }}" {% if tok.civilite_code == c.code %}selected{% endif %}>
-                            {{ c.libelle }}
-                        </option>
+            <hr>
+            <h6 class="fw-bold mb-3">Autorisations</h6>
+            <div class="mb-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="accord_photo"
+                           {% if tok.accord_photo %}checked{% endif %}>
+                    <label class="form-check-label">
+                        J'accepte d'être photographié(e) et filmé(e) lors de l'événement.
+                    </label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="accord_podcast"
+                           {% if tok.accord_podcast %}checked{% endif %}>
+                    <label class="form-check-label">
+                        J'accepte que mon intervention soit diffusée en podcast.
+                    </label>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Email à afficher dans le livret</label>
+                <select class="form-select" name="email_livret_choix">
+                    <option value="aucun" {% if tok.email_livret_choix == 'aucun' %}selected{% endif %}>
+                        Ne pas afficher d'email
+                    </option>
+                    <option value="principal" {% if tok.email_livret_choix == 'principal' %}selected{% endif %}>
+                        Afficher mon email principal
+                    </option>
+                    <option value="secondaire" {% if tok.email_livret_choix == 'secondaire' %}selected{% endif %}>
+                        Afficher mon email secondaire
+                    </option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn w-100"
+                    style="background:#1a5276;color:#fff;font-weight:600;padding:.75rem">
+                Suivant : mes sessions →
+            </button>
+        </form>
+
+        {# ── ÉTAPE 2 : Sessions ──────────────────────────────── #}
+        {% elif etape == 2 %}
+
+        {# Sessions déjà soumises #}
+        {% if sessions_soumises %}
+        <h6 class="fw-bold mb-2">Vos sessions proposées ({{ sessions_soumises|length }})</h6>
+        {% for s in sessions_soumises %}
+        <div class="session-card p-3 mb-2 d-flex justify-content-between align-items-start">
+            <div>
+                <div class="fw-semibold">{{ s.titre }}</div>
+                {% if s.format_code %}<span class="badge bg-secondary me-1">{{ s.format_code }}</span>{% endif %}
+                <span class="text-muted small">{{ s.duree_minutes }} min</span>
+            </div>
+            <form method="POST" action="{{ url_for('intervenants.formulaire_public', token=token, etape=2) }}"
+                  onsubmit="return confirm('Supprimer cette session ?')" class="ms-2">
+                <input type="hidden" name="action" value="supprimer_session">
+                <input type="hidden" name="session_id" value="{{ s.id }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0">✕</button>
+            </form>
+        </div>
+        {% endfor %}
+        <hr>
+        {% endif %}
+
+        {# Formulaire ajout session #}
+        <h6 class="fw-bold mb-3">Proposer une session</h6>
+        <form method="POST" action="{{ url_for('intervenants.formulaire_public', token=token, etape=2) }}">
+            <input type="hidden" name="action" value="ajouter_session">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Titre *</label>
+                <input type="text" class="form-control" name="titre" required
+                       placeholder="Titre de votre intervention">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Description</label>
+                <textarea class="form-control" name="description" rows="3"
+                          placeholder="Résumé de votre session (public, objectifs…)"></textarea>
+            </div>
+            <div class="row g-2 mb-3">
+                <div class="col-sm-6">
+                    <label class="form-label fw-semibold">Format</label>
+                    <select class="form-select" name="format_code">
+                        <option value="">— Choisir —</option>
+                        {% for f in formats %}
+                        <option value="{{ f.code }}">{{ f.libelle }}</option>
                         {% endfor %}
                     </select>
                 </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Nom d'affichage (livret)</label>
-                    <input type="text" class="form-control" name="nom_affichage"
-                           value="{{ tok.nom_affichage or '' }}"
-                           placeholder="Ex : Pr. Dupont ou Sarah Cohen">
-                    <div class="form-text">Laissez vide pour utiliser votre prénom et nom.</div>
+                <div class="col-sm-3">
+                    <label class="form-label fw-semibold">Durée (min)</label>
+                    <input type="number" class="form-control" name="duree_minutes"
+                           value="60" min="15" step="15">
                 </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Fonction / Titre</label>
-                    <input type="text" class="form-control" name="fonction_titre"
-                           value="{{ tok.fonction_titre or '' }}"
-                           placeholder="Ex : Rabbin, Professeur de philosophie…">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Biographie courte</label>
-                    <textarea class="form-control" name="mini_bio" rows="4"
-                              placeholder="Quelques lignes sur votre parcours (500 car. max)">{{ tok.mini_bio or '' }}</textarea>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Spécialités / Domaines</label>
-                    <input type="text" class="form-control" name="specialites"
-                           value="{{ tok.specialites or '' }}"
-                           placeholder="Ex : Kabbale, Éthique, Littérature hébraïque">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Institutions / Affiliations</label>
-                    <input type="text" class="form-control" name="institutions"
-                           value="{{ tok.institutions or '' }}">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Œuvres & Publications</label>
-                    <textarea class="form-control" name="oeuvres_publications" rows="3"
-                              placeholder="Titres de vos ouvrages, articles…">{{ tok.oeuvres_publications or '' }}</textarea>
-                </div>
-
-                <hr>
-                <h6 class="fw-bold mb-3">Présence en ligne</h6>
-
-                <div class="mb-3">
-                    <label class="form-label">Site web</label>
-                    <input type="url" class="form-control" name="site_web"
-                           value="{{ tok.site_web or '' }}" placeholder="https://…">
-                </div>
-                <div class="row g-2 mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label">Twitter / X</label>
-                        <input type="text" class="form-control" name="twitter"
-                               value="{{ tok.twitter or '' }}" placeholder="@pseudo">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Instagram</label>
-                        <input type="text" class="form-control" name="instagram"
-                               value="{{ tok.instagram or '' }}" placeholder="@pseudo">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">LinkedIn</label>
-                        <input type="text" class="form-control" name="linkedin"
-                               value="{{ tok.linkedin or '' }}">
-                    </div>
-                </div>
-
-                <hr>
-                <h6 class="fw-bold mb-3">Autorisations</h6>
-
-                <div class="mb-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="accord_photo"
-                               {% if tok.accord_photo %}checked{% endif %}>
-                        <label class="form-check-label">
-                            J'accepte d'être photographié(e) et filmé(e) lors de l'événement.
-                        </label>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="accord_podcast"
-                               {% if tok.accord_podcast %}checked{% endif %}>
-                        <label class="form-check-label">
-                            J'accepte que mon intervention soit diffusée en podcast.
-                        </label>
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label fw-semibold">Email à afficher dans le livret</label>
-                    <select class="form-select" name="email_livret_choix">
-                        <option value="aucun" {% if tok.email_livret_choix == 'aucun' %}selected{% endif %}>
-                            Ne pas afficher d'email
-                        </option>
-                        <option value="principal" {% if tok.email_livret_choix == 'principal' %}selected{% endif %}>
-                            Afficher mon email principal
-                        </option>
-                        <option value="secondaire" {% if tok.email_livret_choix == 'secondaire' %}selected{% endif %}>
-                            Afficher mon email secondaire
-                        </option>
+                <div class="col-sm-3">
+                    <label class="form-label fw-semibold">Langue</label>
+                    <select class="form-select" name="langue_code">
+                        {% for l in langues %}
+                        <option value="{{ l.code }}" {% if l.code == 'fr' %}selected{% endif %}>{{ l.libelle }}</option>
+                        {% endfor %}
                     </select>
                 </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Niveau</label>
+                <select class="form-select" name="niveau_code">
+                    <option value="">— Non précisé —</option>
+                    {% for n in niveaux %}
+                    <option value="{{ n.code }}">{{ n.libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Besoins techniques</label>
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="besoin_micro" id="micro">
+                        <label class="form-check-label" for="micro">Micro</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="besoin_video" id="video">
+                        <label class="form-check-label" for="video">Vidéoprojecteur</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="besoin_sono" id="sono">
+                        <label class="form-check-label" for="sono">Sonorisation</label>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Matériel apporté</label>
+                <input type="text" class="form-control" name="materiel_intervenant"
+                       placeholder="Ex : mon propre ordinateur, partitions…">
+            </div>
+            <button type="submit" class="btn btn-outline-primary w-100 mb-3">
+                + Ajouter cette session
+            </button>
+        </form>
 
-                <button type="submit" class="btn w-100"
-                        style="background:#1a5276;color:#fff;font-weight:600;padding:.75rem">
-                    Enregistrer ma fiche
-                </button>
-            </form>
+        <form method="POST" action="{{ url_for('intervenants.formulaire_public', token=token, etape=2) }}">
+            <input type="hidden" name="action" value="suivant">
+            <button type="submit" class="btn w-100"
+                    style="background:#1a5276;color:#fff;font-weight:600;padding:.75rem">
+                Suivant : confirmation →
+            </button>
+        </form>
+
+        {# ── ÉTAPE 3 : Confirmation ──────────────────────────── #}
+        {% elif etape == 3 %}
+
+        <h6 class="fw-bold mb-3">Récapitulatif de votre fiche</h6>
+        <table class="table table-sm mb-4">
+            <tr><th style="width:35%">Nom d'affichage</th>
+                <td>{{ intervenant_complet.nom_affichage or (tok.prenom ~ ' ' ~ tok.nom) }}</td></tr>
+            <tr><th>Fonction</th><td>{{ intervenant_complet.fonction_titre or '—' }}</td></tr>
+            <tr><th>Bio</th><td>{{ (intervenant_complet.mini_bio or '—')[:120] }}{% if intervenant_complet.mini_bio and intervenant_complet.mini_bio|length > 120 %}…{% endif %}</td></tr>
+            <tr><th>Spécialités</th><td>{{ intervenant_complet.specialites or '—' }}</td></tr>
+        </table>
+
+        {% if sessions_soumises %}
+        <h6 class="fw-bold mb-2">Sessions proposées ({{ sessions_soumises|length }})</h6>
+        <ul class="list-group mb-4">
+            {% for s in sessions_soumises %}
+            <li class="list-group-item">
+                <strong>{{ s.titre }}</strong>
+                {% if s.format_code %}<span class="badge bg-secondary ms-2">{{ s.format_code }}</span>{% endif %}
+                <span class="text-muted ms-2">{{ s.duree_minutes }} min</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted small mb-4">Aucune session proposée.
+            <a href="{{ url_for('intervenants.formulaire_public', token=token, etape=2) }}">
+                Retour à l'étape 2
+            </a>
+        </p>
         {% endif %}
 
+        <div class="d-flex gap-2 mb-2">
+            <a href="{{ url_for('intervenants.formulaire_public', token=token, etape=1) }}"
+               class="btn btn-outline-secondary">← Modifier ma fiche</a>
+            <a href="{{ url_for('intervenants.formulaire_public', token=token, etape=2) }}"
+               class="btn btn-outline-secondary">← Modifier mes sessions</a>
         </div>
+
+        <form method="POST" action="{{ url_for('intervenants.formulaire_public', token=token, etape=3) }}">
+            <button type="submit" class="btn w-100 mt-2"
+                    style="background:#28a745;color:#fff;font-weight:600;padding:.75rem">
+                Confirmer et envoyer ma participation
+            </button>
+        </form>
+
+        {% endif %}
+        </div>
+    {% endif %}
+
     </div>
     <p class="text-center text-muted small mt-3">
-        Limoud — Ce formulaire est sécurisé et à usage unique.
+        Limoud — Ce formulaire est sécurisé.
     </p>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

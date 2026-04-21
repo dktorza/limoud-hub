@@ -31,6 +31,15 @@
 <nav id="sidebar">
     <div class="sidebar-brand">
         <span class="fs-5 fw-bold text-white">Limoud Hub</span>
+        {% if edition_selectionnee %}
+        <div class="mt-1">
+            <a href="{{ url_for('intervenants.liste') }}"
+               class="text-white-50 small text-decoration-none"
+               style="font-size:.78rem">
+                📅 {{ edition_selectionnee.nom }}
+            </a>
+        </div>
+        {% endif %}
     </div>
     <div class="py-2">
         <div class="nav-section">Tableau de bord</div>

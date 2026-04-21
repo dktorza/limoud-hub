@@ -7,6 +7,9 @@
     </h4>
     <div class="d-flex gap-2 align-items-center">
         {% include 'shared/selecteur_edition.html' %}
+        {% if peut_modifier %}
+        <a href="{{ url_for('intervenants.inviter') }}" class="btn btn-outline-primary btn-sm">✉ Inviter</a>
+        {% endif %}
         <a href="{{ url_for('intervenants.form') }}" class="btn btn-limoud btn-sm">+ Nouvel intervenant</a>
     </div>
 </div>

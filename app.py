@@ -105,9 +105,10 @@ def create_app(env=None):
     @app.context_processor
     def inject_globals():
         edition_courante = None
+        edition_selectionnee = None
         if current_user.is_authenticated:
-            # Récupère l'édition "active" pour l'afficher dans la nav
             from database import query
+            from flask import session as flask_session
             edition_courante = query(
                 """SELECT e.* FROM editions e
                    JOIN ref_statuts_edition s ON e.statut_code = s.code
@@ -115,9 +116,15 @@ def create_app(env=None):
                    ORDER BY e.date_debut DESC LIMIT 1""",
                 one=True
             )
+            eid = flask_session.get('edition_id')
+            if eid:
+                edition_selectionnee = query(
+                    "SELECT * FROM editions WHERE id=?", (eid,), one=True
+                )
         return {
             'app_name': app.config['APP_NAME'],
             'edition_courante': edition_courante,
+            'edition_selectionnee': edition_selectionnee,
         }
 
     # ------------------------------------------------------------------

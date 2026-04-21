@@ -68,6 +68,67 @@ def utilisateur_nouveau():
             flash(f'Erreur : {e}', 'danger')
     return render_template('admin/utilisateur_form.html', utilisateur=None)
 
+@bp.route('/utilisateurs/<int:uid>/modifier', methods=['GET', 'POST'])
+@admin_requis
+def utilisateur_modifier(uid):
+    utilisateur = query("SELECT * FROM utilisateurs WHERE id=?", (uid,), one=True)
+    if not utilisateur:
+        flash('Utilisateur introuvable.', 'danger')
+        return redirect(url_for('admin.utilisateurs_liste'))
+
+    mdp_prov = None
+    if request.method == 'POST':
+        from werkzeug.security import generate_password_hash
+        action = request.form.get('action', 'sauvegarder')
+
+        if action == 'reinitialiser_mdp':
+            import secrets, string
+            mdp_prov = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+            execute("""
+                UPDATE utilisateurs
+                SET password_hash=?, doit_changer_mdp=1, updated_at=datetime('now')
+                WHERE id=?
+            """, (generate_password_hash(mdp_prov), uid))
+            flash('Mot de passe réinitialisé.', 'success')
+            utilisateur = query("SELECT * FROM utilisateurs WHERE id=?", (uid,), one=True)
+            return render_template('admin/utilisateur_form.html',
+                                   utilisateur=utilisateur,
+                                   mdp_prov=mdp_prov,
+                                   mode='modifier')
+        else:
+            email  = request.form.get('email', '').strip().lower()
+            prenom = request.form.get('prenom', '').strip()
+            nom    = request.form.get('nom', '').strip()
+            tel    = request.form.get('telephone', '').strip()
+            actif  = 1 if request.form.get('actif') else 0
+            try:
+                execute("""
+                    UPDATE utilisateurs
+                    SET email=?, prenom=?, nom=?, telephone=?, actif=?,
+                        updated_at=datetime('now')
+                    WHERE id=?
+                """, (email, prenom, nom, tel, actif, uid))
+                flash('Utilisateur mis à jour.', 'success')
+                return redirect(url_for('admin.utilisateurs_liste'))
+            except Exception as e:
+                flash(f'Erreur : {e}', 'danger')
+
+    return render_template('admin/utilisateur_form.html',
+                           utilisateur=utilisateur,
+                           mode='modifier')
+
+
+@bp.route('/utilisateurs/<int:uid>/desactiver', methods=['POST'])
+@admin_requis
+def utilisateur_desactiver(uid):
+    if uid == current_user.id:
+        flash('Vous ne pouvez pas désactiver votre propre compte.', 'danger')
+        return redirect(url_for('admin.utilisateurs_liste'))
+    execute("UPDATE utilisateurs SET actif=0, updated_at=datetime('now') WHERE id=?", (uid,))
+    flash('Utilisateur désactivé.', 'success')
+    return redirect(url_for('admin.utilisateurs_liste'))
+
+
 @bp.route('/utilisateurs/<int:uid>/roles', methods=['GET', 'POST'])
 @admin_requis
 def utilisateur_roles_edit(uid):

@@ -426,13 +426,48 @@ def session_retirer(iid, sid):
 # ------------------------------------------------------------------
 # FORMULAIRE PUBLIC PAR TOKEN
 # ------------------------------------------------------------------
-@bp.route('/<int:iid>/envoyer-formulaire', methods=['POST'])
-@login_required
-def envoyer_formulaire(iid):
-    import secrets, smtplib
+def _envoyer_email_formulaire(intervenant, token, edition_nom=''):
+    """Envoie l'email d'invitation au formulaire. Retourne (True, None) ou (False, message)."""
+    import smtplib
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
     from flask import current_app
+    cfg = current_app.config
+    lien = url_for('intervenants.formulaire_public', token=token, _external=True)
+    msg = MIMEMultipart('alternative')
+    msg['From']    = cfg['MAIL_FROM']
+    msg['To']      = intervenant['email_principal']
+    msg['Subject'] = f"Complétez votre fiche intervenant — Limoud {edition_nom}".strip()
+    corps = f"""<p>Bonjour {intervenant.get('prenom', '')} {intervenant.get('nom', '')},</p>
+<p>L'équipe Limoud vous invite à compléter votre fiche intervenant et à proposer vos sessions.</p>
+<p>Ce formulaire vous permet de :</p>
+<ul>
+  <li>Renseigner votre biographie et vos informations publiques</li>
+  <li>Proposer une ou plusieurs sessions / interventions</li>
+</ul>
+<p style="margin:1.5em 0">
+  <a href="{lien}" style="background:#1a5276;color:#fff;padding:10px 24px;
+     text-decoration:none;border-radius:4px;font-weight:bold;">
+    Accéder au formulaire
+  </a>
+</p>
+<p>Ce lien est valable 30 jours et peut être utilisé à tout moment jusqu'à confirmation finale.
+Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
+<p>L'équipe Limoud</p>"""
+    msg.attach(MIMEText(corps, 'html', 'utf-8'))
+    try:
+        with smtplib.SMTP_SSL(cfg['MAIL_SERVER'], cfg['MAIL_PORT']) as srv:
+            srv.login(cfg['MAIL_USERNAME'], cfg['MAIL_PASSWORD'])
+            srv.sendmail(cfg['MAIL_FROM'], intervenant['email_principal'], msg.as_string())
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+
+@bp.route('/<int:iid>/envoyer-formulaire', methods=['POST'])
+@login_required
+def envoyer_formulaire(iid):
+    import secrets
 
     if not current_user.a_permission('intervenants', 'modifier'):
         flash('Accès non autorisé.', 'danger')
@@ -446,6 +481,27 @@ def envoyer_formulaire(iid):
     eid = edition_courante_id()
     if not eid:
         flash("Aucune édition active.", 'danger')
+        return redirect(url_for('intervenants.fiche', iid=iid))
+
+    # Vérifier si un token actif existe déjà
+    token_existant = query("""
+        SELECT token FROM tokens_formulaire_intervenant
+        WHERE intervenant_id = ? AND edition_id = ? AND utilise = 0
+          AND expire_at > datetime('now')
+        ORDER BY created_at DESC LIMIT 1
+    """, (iid, eid), one=True)
+
+    action = request.form.get('action', 'nouveau')
+
+    if token_existant and action != 'forcer_nouveau':
+        # Proposer de renvoyer le même lien
+        edition = query("SELECT nom FROM editions WHERE id=?", (eid,), one=True)
+        edition_nom = edition['nom'] if edition else ''
+        ok, err = _envoyer_email_formulaire(intervenant, token_existant['token'], edition_nom)
+        if ok:
+            flash(f"Lien existant renvoyé à {intervenant['email_principal']}.", 'success')
+        else:
+            flash(f"Erreur lors de l'envoi email : {err}", 'danger')
         return redirect(url_for('intervenants.fiche', iid=iid))
 
     # Invalider les tokens existants non utilisés
@@ -462,43 +518,25 @@ def envoyer_formulaire(iid):
         VALUES (?, ?, ?, datetime('now', '+30 days'), ?)
     """, (iid, eid, token, current_user.id))
 
-    lien = url_for('intervenants.formulaire_public', token=token, _external=True)
-
-    cfg = current_app.config
-    msg = MIMEMultipart('alternative')
-    msg['From']    = cfg['MAIL_FROM']
-    msg['To']      = intervenant['email_principal']
-    msg['Subject'] = "Complétez votre fiche intervenant — Limoud"
-    corps = f"""<p>Bonjour {intervenant.get('prenom', '')} {intervenant.get('nom', '')},</p>
-<p>L'équipe Limoud vous invite à compléter votre fiche intervenant.</p>
-<p style="margin:1.5em 0">
-  <a href="{lien}" style="background:#1a5276;color:#fff;padding:10px 24px;
-     text-decoration:none;border-radius:4px;font-weight:bold;">
-    Accéder au formulaire
-  </a>
-</p>
-<p>Ce lien est valable 30 jours. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
-<p>L'équipe Limoud</p>"""
-    msg.attach(MIMEText(corps, 'html', 'utf-8'))
-
-    try:
-        with smtplib.SMTP_SSL(cfg['MAIL_SERVER'], cfg['MAIL_PORT']) as srv:
-            srv.login(cfg['MAIL_USERNAME'], cfg['MAIL_PASSWORD'])
-            srv.sendmail(cfg['MAIL_FROM'], intervenant['email_principal'], msg.as_string())
+    edition = query("SELECT nom FROM editions WHERE id=?", (eid,), one=True)
+    edition_nom = edition['nom'] if edition else ''
+    ok, err = _envoyer_email_formulaire(intervenant, token, edition_nom)
+    if ok:
         execute("""
             UPDATE participations_intervenants
             SET statut_code = 'formulaire_envoye', updated_at = datetime('now')
             WHERE intervenant_id = ? AND edition_id = ?
         """, (iid, eid))
         flash(f"Formulaire envoyé à {intervenant['email_principal']}.", 'success')
-    except Exception as e:
-        flash(f"Erreur lors de l'envoi email : {e}", 'danger')
+    else:
+        flash(f"Erreur lors de l'envoi email : {err}", 'danger')
 
     return redirect(url_for('intervenants.fiche', iid=iid))
 
 
 @bp.route('/formulaire/<token>', methods=['GET', 'POST'])
-def formulaire_public(token):
+@bp.route('/formulaire/<token>/etape/<int:etape>', methods=['GET', 'POST'])
+def formulaire_public(token, etape=1):
     from datetime import datetime, timezone
 
     tok = query("""
@@ -514,43 +552,203 @@ def formulaire_public(token):
     if not tok:
         return render_template('intervenants/formulaire_public.html', erreur="Lien invalide.")
     if tok['utilise']:
-        return render_template('intervenants/formulaire_public.html', erreur="Ce lien a déjà été utilisé.")
+        return render_template('intervenants/formulaire_public.html', erreur="Ce lien a déjà été utilisé. Merci pour votre participation !")
     if tok['expire_at'] < datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S'):
         return render_template('intervenants/formulaire_public.html', erreur="Ce lien a expiré.")
 
-    if request.method == 'POST':
-        data = {
-            'civilite_code':        request.form.get('civilite_code') or None,
-            'nom_affichage':        request.form.get('nom_affichage', '').strip() or None,
-            'fonction_titre':       request.form.get('fonction_titre', '').strip() or None,
-            'mini_bio':             request.form.get('mini_bio', '').strip() or None,
-            'specialites':          request.form.get('specialites', '').strip() or None,
-            'institutions':         request.form.get('institutions', '').strip() or None,
-            'oeuvres_publications': request.form.get('oeuvres_publications', '').strip() or None,
-            'site_web':             request.form.get('site_web', '').strip() or None,
-            'twitter':              request.form.get('twitter', '').strip() or None,
-            'instagram':            request.form.get('instagram', '').strip() or None,
-            'linkedin':             request.form.get('linkedin', '').strip() or None,
-            'accord_photo':         1 if request.form.get('accord_photo') else 0,
-            'accord_podcast':       1 if request.form.get('accord_podcast') else 0,
-            'email_livret_choix':   request.form.get('email_livret_choix', 'aucun'),
-        }
-        cols = ', '.join(f"{k} = ?" for k in data.keys())
-        execute(f"UPDATE intervenants SET {cols}, updated_at = datetime('now') WHERE id = ?",
-                list(data.values()) + [tok['intervenant_id']])
-        execute("""
-            UPDATE tokens_formulaire_intervenant
-            SET utilise = 1, utilise_at = datetime('now') WHERE token = ?
-        """, (token,))
-        execute("""
-            UPDATE participations_intervenants
-            SET statut_code = 'formulaire_recu', updated_at = datetime('now')
-            WHERE intervenant_id = ? AND edition_id = ?
-        """, (tok['intervenant_id'], tok['edition_id']))
+    iid = tok['intervenant_id']
+    eid = tok['edition_id']
+
+    # ── Étape 1 : Identité ──────────────────────────────────────────────
+    if etape == 1:
+        if request.method == 'POST':
+            data = {
+                'civilite_code':        request.form.get('civilite_code') or None,
+                'nom_affichage':        request.form.get('nom_affichage', '').strip() or None,
+                'fonction_titre':       request.form.get('fonction_titre', '').strip() or None,
+                'mini_bio':             request.form.get('mini_bio', '').strip() or None,
+                'specialites':          request.form.get('specialites', '').strip() or None,
+                'institutions':         request.form.get('institutions', '').strip() or None,
+                'oeuvres_publications': request.form.get('oeuvres_publications', '').strip() or None,
+                'site_web':             request.form.get('site_web', '').strip() or None,
+                'twitter':              request.form.get('twitter', '').strip() or None,
+                'instagram':            request.form.get('instagram', '').strip() or None,
+                'linkedin':             request.form.get('linkedin', '').strip() or None,
+                'accord_photo':         1 if request.form.get('accord_photo') else 0,
+                'accord_podcast':       1 if request.form.get('accord_podcast') else 0,
+                'email_livret_choix':   request.form.get('email_livret_choix', 'aucun'),
+            }
+            cols = ', '.join(f"{k} = ?" for k in data.keys())
+            execute(f"UPDATE intervenants SET {cols}, updated_at = datetime('now') WHERE id = ?",
+                    list(data.values()) + [iid])
+            return redirect(url_for('intervenants.formulaire_public', token=token, etape=2))
+
         civilites = query("SELECT * FROM ref_civilites ORDER BY ordre")
         return render_template('intervenants/formulaire_public.html',
-                               confirme=True, civilites=civilites, tok=tok)
+                               tok=tok, civilites=civilites, etape=1, token=token)
+
+    # ── Étape 2 : Sessions ──────────────────────────────────────────────
+    if etape == 2:
+        formats  = query("SELECT * FROM ref_formats_session WHERE actif=1 ORDER BY code")
+        langues  = query("SELECT * FROM ref_langues WHERE actif=1 ORDER BY code")
+        niveaux  = query("SELECT * FROM ref_niveaux_session ORDER BY ordre")
+
+        if request.method == 'POST':
+            action = request.form.get('action', '')
+
+            if action == 'ajouter_session':
+                titre = request.form.get('titre', '').strip()
+                if titre:
+                    sid = insert('sessions', {
+                        'edition_id':          eid,
+                        'titre':               titre,
+                        'description':         request.form.get('description', '').strip() or None,
+                        'format_code':         request.form.get('format_code') or None,
+                        'duree_minutes':       int(request.form.get('duree_minutes') or 60),
+                        'langue_code':         request.form.get('langue_code', 'fr'),
+                        'niveau_code':         request.form.get('niveau_code') or None,
+                        'besoin_micro':        1 if request.form.get('besoin_micro') else 0,
+                        'besoin_video':        1 if request.form.get('besoin_video') else 0,
+                        'besoin_sono':         1 if request.form.get('besoin_sono') else 0,
+                        'materiel_intervenant': request.form.get('materiel_intervenant', '').strip() or None,
+                        'statut_code':         'soumis',
+                    })
+                    try:
+                        insert('session_intervenants', {
+                            'session_id':      sid,
+                            'intervenant_id':  iid,
+                            'role_code':       'principal',
+                            'ordre_affichage': 1,
+                        })
+                    except Exception:
+                        pass
+                return redirect(url_for('intervenants.formulaire_public', token=token, etape=2))
+
+            elif action == 'supprimer_session':
+                sid = int(request.form.get('session_id', 0))
+                if sid:
+                    # Ne supprimer que les sessions soumises via ce formulaire
+                    execute("""
+                        DELETE FROM sessions
+                        WHERE id = ? AND edition_id = ? AND statut_code = 'soumis'
+                          AND id IN (
+                              SELECT session_id FROM session_intervenants WHERE intervenant_id = ?
+                          )
+                    """, (sid, eid, iid))
+                return redirect(url_for('intervenants.formulaire_public', token=token, etape=2))
+
+            elif action == 'suivant':
+                return redirect(url_for('intervenants.formulaire_public', token=token, etape=3))
+
+        sessions_soumises = query("""
+            SELECT s.* FROM sessions s
+            JOIN session_intervenants si ON si.session_id = s.id
+            WHERE si.intervenant_id = ? AND s.edition_id = ? AND s.statut_code = 'soumis'
+            ORDER BY s.titre
+        """, (iid, eid))
+
+        return render_template('intervenants/formulaire_public.html',
+                               tok=tok, etape=2, token=token,
+                               sessions_soumises=sessions_soumises,
+                               formats=formats, langues=langues, niveaux=niveaux)
+
+    # ── Étape 3 : Confirmation ──────────────────────────────────────────
+    if etape == 3:
+        if request.method == 'POST':
+            # Marquer le token comme utilisé définitivement
+            execute("""
+                UPDATE tokens_formulaire_intervenant
+                SET utilise = 1, utilise_at = datetime('now') WHERE token = ?
+            """, (token,))
+            execute("""
+                UPDATE participations_intervenants
+                SET statut_code = 'formulaire_recu', updated_at = datetime('now')
+                WHERE intervenant_id = ? AND edition_id = ?
+            """, (iid, eid))
+            return render_template('intervenants/formulaire_public.html',
+                                   confirme=True, tok=tok)
+
+        intervenant_complet = query("SELECT * FROM intervenants WHERE id=?", (iid,), one=True)
+        sessions_soumises = query("""
+            SELECT s.* FROM sessions s
+            JOIN session_intervenants si ON si.session_id = s.id
+            WHERE si.intervenant_id = ? AND s.edition_id = ? AND s.statut_code = 'soumis'
+            ORDER BY s.titre
+        """, (iid, eid))
+
+        return render_template('intervenants/formulaire_public.html',
+                               tok=tok, etape=3, token=token,
+                               intervenant_complet=intervenant_complet,
+                               sessions_soumises=sessions_soumises)
+
+    # Étape inconnue → retour étape 1
+    return redirect(url_for('intervenants.formulaire_public', token=token, etape=1))
+
+
+# ------------------------------------------------------------------
+# INVITATION RAPIDE
+# ------------------------------------------------------------------
+@bp.route('/inviter', methods=['GET', 'POST'])
+@login_required
+def inviter():
+    import secrets
+    if not current_user.a_permission('intervenants', 'creer'):
+        flash('Accès non autorisé.', 'danger')
+        return redirect(url_for('intervenants.liste'))
+
+    if request.method == 'POST':
+        civilite = request.form.get('civilite_code') or None
+        prenom   = request.form.get('prenom', '').strip()
+        nom      = request.form.get('nom', '').strip().upper()
+        email    = request.form.get('email', '').strip().lower()
+
+        if not prenom or not nom or not email:
+            flash('Prénom, nom et email sont obligatoires.', 'danger')
+        else:
+            eid = edition_courante_id()
+            try:
+                iid = insert('intervenants', {
+                    'civilite_code': civilite,
+                    'prenom': prenom,
+                    'nom': nom,
+                    'email_principal': email,
+                    'created_by': current_user.id,
+                })
+                if eid:
+                    insert('participations_intervenants', {
+                        'intervenant_id': iid,
+                        'edition_id': eid,
+                        'statut_code': 'formulaire_envoye',
+                        'created_by': current_user.id,
+                    })
+
+                # Générer le token
+                token = secrets.token_urlsafe(32)
+                execute("""
+                    INSERT INTO tokens_formulaire_intervenant
+                        (intervenant_id, edition_id, token, expire_at, created_by)
+                    VALUES (?, ?, ?, datetime('now', '+30 days'), ?)
+                """, (iid, eid, token, current_user.id))
+
+                intervenant = query("SELECT * FROM intervenants WHERE id=?", (iid,), one=True)
+                edition = query("SELECT nom FROM editions WHERE id=?", (eid,), one=True) if eid else None
+                edition_nom = edition['nom'] if edition else ''
+                ok, err = _envoyer_email_formulaire(intervenant, token, edition_nom)
+
+                if ok:
+                    flash(f"Invitation envoyée à {email}. L'intervenant peut dès maintenant compléter sa fiche.", 'success')
+                else:
+                    flash(f"Intervenant créé mais erreur d'envoi email : {err}", 'warning')
+                return redirect(url_for('intervenants.liste'))
+            except Exception as e:
+                flash(f'Erreur : {e}', 'danger')
 
     civilites = query("SELECT * FROM ref_civilites ORDER BY ordre")
-    return render_template('intervenants/formulaire_public.html',
-                           tok=tok, civilites=civilites)
+    editions  = query("SELECT * FROM editions ORDER BY annee DESC")
+    eid = edition_courante_id()
+    edition_sel = query("SELECT * FROM editions WHERE id=?", (eid,), one=True) if eid else None
+    return render_template('intervenants/inviter.html',
+                           civilites=civilites,
+                           editions=editions,
+                           edition_sel=edition_sel,
+                           edition_id=eid)

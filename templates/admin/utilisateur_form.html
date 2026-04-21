@@ -1,17 +1,28 @@
 {% extends 'base.html' %}
-{% block title %}Nouvel utilisateur — Limoud Hub{% endblock %}
+{% block title %}{{ 'Modifier' if mode == 'modifier' else 'Nouvel' }} utilisateur — Limoud Hub{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="fw-bold mb-0">Nouvel utilisateur</h4>
+    <h4 class="fw-bold mb-0">
+        {% if mode == 'modifier' %}
+            Modifier {{ utilisateur.prenom }} {{ utilisateur.nom }}
+        {% else %}
+            Nouvel utilisateur
+        {% endif %}
+    </h4>
     <a href="{{ url_for('admin.utilisateurs_liste') }}" class="btn btn-outline-secondary">← Retour</a>
 </div>
 
 {% if mdp_prov %}
-{# Panneau de confirmation après création #}
+{# Panneau mot de passe provisoire (création ou réinitialisation) #}
 <div class="card border-success mb-4">
     <div class="card-body p-4">
+        {% if mode == 'modifier' %}
+        <h5 class="fw-bold text-success mb-3">✓ Mot de passe réinitialisé</h5>
+        <p class="mb-2">Communiquez ce mot de passe provisoire à l'utilisateur :</p>
+        {% else %}
         <h5 class="fw-bold text-success mb-3">✓ Utilisateur créé : {{ new_nom }}</h5>
         <p class="mb-2">Communiquez ce mot de passe provisoire à l'utilisateur :</p>
+        {% endif %}
         <div class="input-group mb-3" style="max-width:420px">
             <input type="text" id="mdp-prov" class="form-control form-control-lg fw-bold font-monospace"
                    value="{{ mdp_prov }}" readonly>
@@ -24,17 +35,76 @@
             </button>
         </div>
         <p class="text-muted small mb-3">
-            L'utilisateur sera invité à changer ce mot de passe dès sa première connexion.
+            L'utilisateur sera invité à changer ce mot de passe dès sa prochaine connexion.
         </p>
+        {% if mode == 'modifier' %}
+        <a href="{{ url_for('admin.utilisateur_modifier', uid=utilisateur.id) }}"
+           class="btn btn-outline-secondary">← Retour à la fiche</a>
+        {% else %}
         <div class="d-flex gap-2">
             <a href="{{ url_for('admin.utilisateur_roles_edit', uid=new_uid) }}"
                class="btn btn-limoud">Attribuer des rôles →</a>
             <a href="{{ url_for('admin.utilisateur_nouveau') }}"
                class="btn btn-outline-secondary">Créer un autre utilisateur</a>
         </div>
+        {% endif %}
+    </div>
+</div>
+{% elif mode == 'modifier' %}
+{# Formulaire modification #}
+<div class="card mb-4">
+    <div class="card-body p-4" style="max-width:500px">
+        <form method="POST" action="{{ url_for('admin.utilisateur_modifier', uid=utilisateur.id) }}">
+            <input type="hidden" name="action" value="sauvegarder">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Prénom</label>
+                <input type="text" class="form-control" name="prenom"
+                       value="{{ utilisateur.prenom or '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Nom</label>
+                <input type="text" class="form-control" name="nom"
+                       value="{{ utilisateur.nom or '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Email (= login)</label>
+                <input type="email" class="form-control" name="email"
+                       value="{{ utilisateur.email or '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Téléphone</label>
+                <input type="text" class="form-control" name="telephone"
+                       value="{{ utilisateur.telephone or '' }}">
+            </div>
+            <div class="mb-4">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="actif"
+                           {% if utilisateur.actif %}checked{% endif %}>
+                    <label class="form-check-label">Compte actif</label>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-limoud">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-4" style="max-width:500px">
+        <h6 class="fw-bold mb-3">Réinitialiser le mot de passe</h6>
+        <p class="text-muted small mb-3">
+            Génère un nouveau mot de passe provisoire. L'utilisateur devra le changer à la prochaine connexion.
+        </p>
+        <form method="POST" action="{{ url_for('admin.utilisateur_modifier', uid=utilisateur.id) }}"
+              onsubmit="return confirm('Réinitialiser le mot de passe de {{ utilisateur.prenom }} {{ utilisateur.nom }} ?')">
+            <input type="hidden" name="action" value="reinitialiser_mdp">
+            <button type="submit" class="btn btn-outline-warning btn-sm">Réinitialiser le mot de passe</button>
+        </form>
     </div>
 </div>
 {% else %}
+{# Formulaire création #}
 <div class="card">
     <div class="card-body p-4" style="max-width:500px">
         <form method="POST">
