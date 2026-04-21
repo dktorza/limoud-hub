@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulaire intervenant — Limoud</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background:#f4f6f9; font-family:'Segoe UI',sans-serif; }
+        .form-card { max-width:680px; margin:2rem auto; }
+        .logo-band { background:#1a5276; color:#fff; padding:1.25rem 1.5rem; border-radius:.5rem .5rem 0 0; }
+        .logo-band h1 { font-size:1.4rem; margin:0; font-weight:700; }
+        .logo-band p  { margin:0; opacity:.75; font-size:.9rem; }
+    </style>
+</head>
+<body>
+<div class="form-card">
+    <div class="logo-band">
+        <h1>Limoud</h1>
+        <p>Formulaire intervenant</p>
+    </div>
+    <div class="card" style="border-radius:0 0 .5rem .5rem; border:none; box-shadow:0 2px 8px rgba(0,0,0,.1)">
+        <div class="card-body p-4">
+
+        {% if erreur %}
+            <div class="alert alert-danger">{{ erreur }}</div>
+
+        {% elif confirme %}
+            <div class="text-center py-4">
+                <div class="fs-1 text-success mb-3">✓</div>
+                <h4 class="fw-bold">Merci !</h4>
+                <p class="text-muted">Votre fiche a bien été enregistrée. L'équipe Limoud vous contactera prochainement.</p>
+            </div>
+
+        {% else %}
+            <p class="text-muted mb-4">
+                Bonjour <strong>{{ tok.prenom }} {{ tok.nom }}</strong>,<br>
+                merci de compléter les informations ci-dessous. Seules les données publiques sont demandées.
+            </p>
+
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Civilité</label>
+                    <select class="form-select" name="civilite_code">
+                        <option value="">—</option>
+                        {% for c in civilites %}
+                        <option value="{{ c.code }}" {% if tok.civilite_code == c.code %}selected{% endif %}>
+                            {{ c.libelle }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Nom d'affichage (livret)</label>
+                    <input type="text" class="form-control" name="nom_affichage"
+                           value="{{ tok.nom_affichage or '' }}"
+                           placeholder="Ex : Pr. Dupont ou Sarah Cohen">
+                    <div class="form-text">Laissez vide pour utiliser votre prénom et nom.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Fonction / Titre</label>
+                    <input type="text" class="form-control" name="fonction_titre"
+                           value="{{ tok.fonction_titre or '' }}"
+                           placeholder="Ex : Rabbin, Professeur de philosophie…">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Biographie courte</label>
+                    <textarea class="form-control" name="mini_bio" rows="4"
+                              placeholder="Quelques lignes sur votre parcours (500 car. max)">{{ tok.mini_bio or '' }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Spécialités / Domaines</label>
+                    <input type="text" class="form-control" name="specialites"
+                           value="{{ tok.specialites or '' }}"
+                           placeholder="Ex : Kabbale, Éthique, Littérature hébraïque">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Institutions / Affiliations</label>
+                    <input type="text" class="form-control" name="institutions"
+                           value="{{ tok.institutions or '' }}">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Œuvres & Publications</label>
+                    <textarea class="form-control" name="oeuvres_publications" rows="3"
+                              placeholder="Titres de vos ouvrages, articles…">{{ tok.oeuvres_publications or '' }}</textarea>
+                </div>
+
+                <hr>
+                <h6 class="fw-bold mb-3">Présence en ligne</h6>
+
+                <div class="mb-3">
+                    <label class="form-label">Site web</label>
+                    <input type="url" class="form-control" name="site_web"
+                           value="{{ tok.site_web or '' }}" placeholder="https://…">
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Twitter / X</label>
+                        <input type="text" class="form-control" name="twitter"
+                               value="{{ tok.twitter or '' }}" placeholder="@pseudo">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Instagram</label>
+                        <input type="text" class="form-control" name="instagram"
+                               value="{{ tok.instagram or '' }}" placeholder="@pseudo">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">LinkedIn</label>
+                        <input type="text" class="form-control" name="linkedin"
+                               value="{{ tok.linkedin or '' }}">
+                    </div>
+                </div>
+
+                <hr>
+                <h6 class="fw-bold mb-3">Autorisations</h6>
+
+                <div class="mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accord_photo"
+                               {% if tok.accord_photo %}checked{% endif %}>
+                        <label class="form-check-label">
+                            J'accepte d'être photographié(e) et filmé(e) lors de l'événement.
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="accord_podcast"
+                               {% if tok.accord_podcast %}checked{% endif %}>
+                        <label class="form-check-label">
+                            J'accepte que mon intervention soit diffusée en podcast.
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Email à afficher dans le livret</label>
+                    <select class="form-select" name="email_livret_choix">
+                        <option value="aucun" {% if tok.email_livret_choix == 'aucun' %}selected{% endif %}>
+                            Ne pas afficher d'email
+                        </option>
+                        <option value="principal" {% if tok.email_livret_choix == 'principal' %}selected{% endif %}>
+                            Afficher mon email principal
+                        </option>
+                        <option value="secondaire" {% if tok.email_livret_choix == 'secondaire' %}selected{% endif %}>
+                            Afficher mon email secondaire
+                        </option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn w-100"
+                        style="background:#1a5276;color:#fff;font-weight:600;padding:.75rem">
+                    Enregistrer ma fiche
+                </button>
+            </form>
+        {% endif %}
+
+        </div>
+    </div>
+    <p class="text-center text-muted small mt-3">
+        Limoud — Ce formulaire est sécurisé et à usage unique.
+    </p>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

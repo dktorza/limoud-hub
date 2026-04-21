@@ -182,6 +182,16 @@ def fiche(iid):
     peut_voir_contacts = current_user.a_permission('intervenants', 'voir_fiche', 'email_principal')
     peut_modifier = current_user.a_permission('intervenants', 'modifier')
 
+    # Token formulaire actif
+    token_actif = None
+    if eid:
+        token_actif = query("""
+            SELECT * FROM tokens_formulaire_intervenant
+            WHERE intervenant_id = ? AND edition_id = ? AND utilise = 0
+              AND expire_at > datetime('now')
+            ORDER BY created_at DESC LIMIT 1
+        """, (iid, eid), one=True)
+
     editions = query("SELECT * FROM editions ORDER BY annee DESC")
     edition_sel = query("SELECT * FROM editions WHERE id=?", (eid,), one=True) if eid else None
 
@@ -190,6 +200,7 @@ def fiche(iid):
                            participation=participation,
                            historique=historique,
                            sessions=sessions,
+                           token_actif=token_actif,
                            peut_voir_contacts=peut_voir_contacts,
                            peut_modifier=peut_modifier,
                            editions=editions,
@@ -214,6 +225,8 @@ def form(iid=None):
         if not intervenant:
             flash('Introuvable.', 'danger')
             return redirect(url_for('intervenants.liste'))
+
+    session_id = request.args.get('session_id') or request.form.get('session_id') or ''
 
     if request.method == 'POST':
         data = {
@@ -281,6 +294,20 @@ def form(iid=None):
                         'created_by': current_user.id,
                     })
 
+                sid_lien = request.form.get('session_id', '').strip()
+                if sid_lien:
+                    try:
+                        insert('session_intervenants', {
+                            'session_id':      int(sid_lien),
+                            'intervenant_id':  new_id,
+                            'role_code':       'principal',
+                            'ordre_affichage': 1,
+                        })
+                    except Exception:
+                        pass
+                    flash('Intervenant créé et ajouté à la session.', 'success')
+                    return redirect(url_for('sessions.fiche', sid=int(sid_lien)))
+
                 flash('Intervenant créé.', 'success')
                 return redirect(url_for('intervenants.fiche', iid=new_id))
         except Exception as e:
@@ -296,7 +323,8 @@ def form(iid=None):
                            civilites=civilites,
                            editions=editions,
                            edition_sel=edition_sel,
-                           edition_id=eid)
+                           edition_id=eid,
+                           session_id=session_id)
 
 
 # ------------------------------------------------------------------
@@ -386,3 +414,136 @@ def session_retirer(iid, sid):
             (sid, iid))
     flash('Session détachée.', 'success')
     return redirect(url_for('intervenants.fiche', iid=iid))
+
+
+# ------------------------------------------------------------------
+# FORMULAIRE PUBLIC PAR TOKEN
+# ------------------------------------------------------------------
+@bp.route('/<int:iid>/envoyer-formulaire', methods=['POST'])
+@login_required
+def envoyer_formulaire(iid):
+    import secrets, smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from flask import current_app
+
+    if not current_user.a_permission('intervenants', 'modifier'):
+        flash('Accès non autorisé.', 'danger')
+        return redirect(url_for('intervenants.fiche', iid=iid))
+
+    intervenant = query("SELECT * FROM intervenants WHERE id=?", (iid,), one=True)
+    if not intervenant or not intervenant['email_principal']:
+        flash("L'intervenant n'a pas d'adresse email renseignée.", 'danger')
+        return redirect(url_for('intervenants.fiche', iid=iid))
+
+    eid = edition_courante_id()
+    if not eid:
+        flash("Aucune édition active.", 'danger')
+        return redirect(url_for('intervenants.fiche', iid=iid))
+
+    # Invalider les tokens existants non utilisés
+    execute("""
+        UPDATE tokens_formulaire_intervenant
+        SET utilise = 1, utilise_at = datetime('now')
+        WHERE intervenant_id = ? AND edition_id = ? AND utilise = 0
+    """, (iid, eid))
+
+    token = secrets.token_urlsafe(32)
+    execute("""
+        INSERT INTO tokens_formulaire_intervenant
+            (intervenant_id, edition_id, token, expire_at, created_by)
+        VALUES (?, ?, ?, datetime('now', '+30 days'), ?)
+    """, (iid, eid, token, current_user.id))
+
+    lien = url_for('intervenants.formulaire_public', token=token, _external=True)
+
+    cfg = current_app.config
+    msg = MIMEMultipart('alternative')
+    msg['From']    = cfg['MAIL_FROM']
+    msg['To']      = intervenant['email_principal']
+    msg['Subject'] = "Complétez votre fiche intervenant — Limoud"
+    corps = f"""<p>Bonjour {intervenant.get('prenom', '')} {intervenant.get('nom', '')},</p>
+<p>L'équipe Limoud vous invite à compléter votre fiche intervenant.</p>
+<p style="margin:1.5em 0">
+  <a href="{lien}" style="background:#1a5276;color:#fff;padding:10px 24px;
+     text-decoration:none;border-radius:4px;font-weight:bold;">
+    Accéder au formulaire
+  </a>
+</p>
+<p>Ce lien est valable 30 jours. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
+<p>L'équipe Limoud</p>"""
+    msg.attach(MIMEText(corps, 'html', 'utf-8'))
+
+    try:
+        with smtplib.SMTP_SSL(cfg['MAIL_SERVER'], cfg['MAIL_PORT']) as srv:
+            srv.login(cfg['MAIL_USERNAME'], cfg['MAIL_PASSWORD'])
+            srv.sendmail(cfg['MAIL_FROM'], intervenant['email_principal'], msg.as_string())
+        execute("""
+            UPDATE participations_intervenants
+            SET statut_code = 'formulaire_envoye', updated_at = datetime('now')
+            WHERE intervenant_id = ? AND edition_id = ?
+        """, (iid, eid))
+        flash(f"Formulaire envoyé à {intervenant['email_principal']}.", 'success')
+    except Exception as e:
+        flash(f"Erreur lors de l'envoi email : {e}", 'danger')
+
+    return redirect(url_for('intervenants.fiche', iid=iid))
+
+
+@bp.route('/formulaire/<token>', methods=['GET', 'POST'])
+def formulaire_public(token):
+    from datetime import datetime, timezone
+
+    tok = query("""
+        SELECT t.*, i.civilite_code, i.nom, i.prenom, i.nom_affichage,
+               i.fonction_titre, i.mini_bio, i.specialites, i.institutions,
+               i.oeuvres_publications, i.site_web, i.twitter, i.instagram,
+               i.linkedin, i.accord_photo, i.accord_podcast, i.email_livret_choix
+        FROM tokens_formulaire_intervenant t
+        JOIN intervenants i ON i.id = t.intervenant_id
+        WHERE t.token = ?
+    """, (token,), one=True)
+
+    if not tok:
+        return render_template('intervenants/formulaire_public.html', erreur="Lien invalide.")
+    if tok['utilise']:
+        return render_template('intervenants/formulaire_public.html', erreur="Ce lien a déjà été utilisé.")
+    if tok['expire_at'] < datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S'):
+        return render_template('intervenants/formulaire_public.html', erreur="Ce lien a expiré.")
+
+    if request.method == 'POST':
+        data = {
+            'civilite_code':        request.form.get('civilite_code') or None,
+            'nom_affichage':        request.form.get('nom_affichage', '').strip() or None,
+            'fonction_titre':       request.form.get('fonction_titre', '').strip() or None,
+            'mini_bio':             request.form.get('mini_bio', '').strip() or None,
+            'specialites':          request.form.get('specialites', '').strip() or None,
+            'institutions':         request.form.get('institutions', '').strip() or None,
+            'oeuvres_publications': request.form.get('oeuvres_publications', '').strip() or None,
+            'site_web':             request.form.get('site_web', '').strip() or None,
+            'twitter':              request.form.get('twitter', '').strip() or None,
+            'instagram':            request.form.get('instagram', '').strip() or None,
+            'linkedin':             request.form.get('linkedin', '').strip() or None,
+            'accord_photo':         1 if request.form.get('accord_photo') else 0,
+            'accord_podcast':       1 if request.form.get('accord_podcast') else 0,
+            'email_livret_choix':   request.form.get('email_livret_choix', 'aucun'),
+        }
+        cols = ', '.join(f"{k} = ?" for k in data.keys())
+        execute(f"UPDATE intervenants SET {cols}, updated_at = datetime('now') WHERE id = ?",
+                list(data.values()) + [tok['intervenant_id']])
+        execute("""
+            UPDATE tokens_formulaire_intervenant
+            SET utilise = 1, utilise_at = datetime('now') WHERE token = ?
+        """, (token,))
+        execute("""
+            UPDATE participations_intervenants
+            SET statut_code = 'formulaire_recu', updated_at = datetime('now')
+            WHERE intervenant_id = ? AND edition_id = ?
+        """, (tok['intervenant_id'], tok['edition_id']))
+        civilites = query("SELECT * FROM ref_civilites ORDER BY ordre")
+        return render_template('intervenants/formulaire_public.html',
+                               confirme=True, civilites=civilites, tok=tok)
+
+    civilites = query("SELECT * FROM ref_civilites ORDER BY ordre")
+    return render_template('intervenants/formulaire_public.html',
+                           tok=tok, civilites=civilites)

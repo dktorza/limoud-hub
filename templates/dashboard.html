@@ -1,11 +1,68 @@
 {% extends 'base.html' %}
 {% block title %}Tableau de bord — Limoud Hub{% endblock %}
 {% block content %}
-<div class="p-4">
-    <h4 class="fw-bold mb-4">Bienvenue sur Limoud Hub</h4>
-    <div class="card p-3">
-        <p>Le hub est opérationnel.</p>
-        <a href="{{ url_for('admin.tableau_de_bord') }}" class="btn btn-limoud">Administration</a>
+<h4 class="fw-bold mb-4">Tableau de bord</h4>
+
+{% if widgets %}
+<div class="row g-3">
+    {% set taille_map = {'plein': 'col-12', 'moitie': 'col-md-6', 'tiers': 'col-md-4'} %}
+    {% set icone_map = {
+        'bus': 'bi-bus-front', 'enfant': 'bi-emoji-smile', 'etoile': 'bi-star',
+        'assiette': 'bi-egg-fried', 'micro': 'bi-mic', 'calendrier': 'bi-calendar3',
+        'badge': 'bi-qr-code', 'hotel': 'bi-building', 'scan': 'bi-upc-scan',
+        'check': 'bi-person-check', 'stats': 'bi-bar-chart', 'livre': 'bi-journal-text',
+        'bebe': 'bi-emoji-heart-eyes'
+    } %}
+    {% for w in widgets %}
+    <div class="{{ taille_map.get(w.taille, 'col-md-6') }}">
+        <div class="card h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="fs-2 text-primary opacity-75">
+                    <i class="bi {{ icone_map.get(w.icone, 'bi-grid') }}"></i>
+                </div>
+                <div>
+                    <div class="fw-semibold">{{ w.titre }}</div>
+                    <div class="small text-muted">{{ w.code }}</div>
+                </div>
+            </div>
+        </div>
     </div>
+    {% endfor %}
 </div>
+
+{% else %}
+{# Tuiles de navigation par défaut #}
+<div class="row g-3">
+    {% if current_user.a_permission('intervenants', 'voir_liste') %}
+    <div class="col-md-4">
+        <a href="{{ url_for('intervenants.liste') }}" class="card text-decoration-none h-100">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-person-badge fs-1 text-primary"></i>
+                <div class="fw-semibold mt-2">Intervenants</div>
+            </div>
+        </a>
+    </div>
+    {% endif %}
+    {% if current_user.a_permission('sessions', 'voir_liste') %}
+    <div class="col-md-4">
+        <a href="{{ url_for('sessions.liste') }}" class="card text-decoration-none h-100">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-mic fs-1 text-primary"></i>
+                <div class="fw-semibold mt-2">Sessions</div>
+            </div>
+        </a>
+    </div>
+    {% endif %}
+    {% if current_user.a_permission('admin', 'voir_liste') %}
+    <div class="col-md-4">
+        <a href="{{ url_for('admin.tableau_de_bord') }}" class="card text-decoration-none h-100">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-gear fs-1 text-primary"></i>
+                <div class="fw-semibold mt-2">Administration</div>
+            </div>
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
 {% endblock %}

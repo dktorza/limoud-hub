@@ -10,6 +10,9 @@
 </div>
 
 <form method="POST">
+{% if session_id %}
+<input type="hidden" name="session_id" value="{{ session_id }}">
+{% endif %}
 <div class="row g-3">
     <!-- Identité -->
     <div class="col-12">

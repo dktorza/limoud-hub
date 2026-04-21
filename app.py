@@ -131,11 +131,22 @@ def create_app(env=None):
 
     @app.route('/dashboard')
     def dashboard():
-        from flask_login import login_required
-        # Sera décoré plus tard ; pour l'instant simple redirect
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login'))
-        return render_template('dashboard.html')
+        from database import query as db_query
+        widgets = db_query("""
+            SELECT DISTINCT dw.code, dw.titre, dw.icone, drw.taille, drw.ordre
+            FROM dashboard_roles_widgets drw
+            JOIN dashboard_widgets dw ON dw.code = drw.widget_code
+            WHERE drw.actif = 1 AND dw.actif = 1
+              AND drw.role_code IN (
+                  SELECT role_code FROM utilisateur_roles
+                  WHERE utilisateur_id = ? AND actif = 1
+                    AND (expire_le IS NULL OR expire_le > datetime('now'))
+              )
+            ORDER BY drw.ordre
+        """, (current_user.id,))
+        return render_template('dashboard.html', widgets=widgets)
 
     # ------------------------------------------------------------------
     # Gestion des erreurs

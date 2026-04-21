@@ -117,6 +117,13 @@
                 </table>
                 {% endif %}
 
+                {% if peut_modifier %}
+                <div class="mb-2">
+                    <a href="{{ url_for('intervenants.form', session_id=session.id) }}"
+                       class="btn btn-sm btn-outline-success">+ Créer un nouvel intervenant</a>
+                </div>
+                {% endif %}
+
                 {% if peut_modifier and intervenants_dispo %}
                 <form method="POST" action="{{ url_for('sessions.intervenant_ajouter', sid=session.id) }}"
                       class="d-flex gap-2 mt-2">

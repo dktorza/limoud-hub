@@ -34,12 +34,76 @@
     </div>
     <div class="py-2">
         <div class="nav-section">Tableau de bord</div>
-        <a href="{{ url_for('dashboard') }}" class="nav-link">Accueil</a>
+        <a href="{{ url_for('dashboard') }}" class="nav-link
+            {% if request.endpoint == 'dashboard' %}active{% endif %}">
+            <i class="bi bi-house me-1"></i> Accueil
+        </a>
+
+        {% set show_programme = current_user.a_permission('intervenants','voir_liste')
+                              or current_user.a_permission('sessions','voir_liste')
+                              or current_user.a_permission('planning','voir_liste') %}
+        {% if show_programme %}
         <div class="nav-section">Programme</div>
-        <a href="{{ url_for('intervenants.liste') }}" class="nav-link">Intervenants</a>
-        <a href="{{ url_for('sessions.liste') }}" class="nav-link">Sessions</a>
+        {% if current_user.a_permission('intervenants', 'voir_liste') %}
+        <a href="{{ url_for('intervenants.liste') }}" class="nav-link
+            {% if request.blueprint == 'intervenants' %}active{% endif %}">
+            <i class="bi bi-person-badge me-1"></i> Intervenants
+        </a>
+        {% endif %}
+        {% if current_user.a_permission('sessions', 'voir_liste') %}
+        <a href="{{ url_for('sessions.liste') }}" class="nav-link
+            {% if request.blueprint == 'sessions' %}active{% endif %}">
+            <i class="bi bi-mic me-1"></i> Sessions
+        </a>
+        {% endif %}
+        {% if current_user.a_permission('planning', 'voir_liste') %}
+        <a href="{{ url_for('planning.index') }}" class="nav-link
+            {% if request.blueprint == 'planning' %}active{% endif %}">
+            <i class="bi bi-calendar3 me-1"></i> Planning
+        </a>
+        {% endif %}
+        {% endif %}
+
+        {% set show_participants = current_user.a_permission('participants','voir_liste')
+                                 or current_user.a_permission('helloasso','voir_liste')
+                                 or current_user.a_permission('badges','voir_liste') %}
+        {% if show_participants %}
+        <div class="nav-section">Participants</div>
+        {% if current_user.a_permission('participants', 'voir_liste') %}
+        <a href="{{ url_for('participants.index') }}" class="nav-link
+            {% if request.blueprint == 'participants' %}active{% endif %}">
+            <i class="bi bi-people me-1"></i> Participants
+        </a>
+        {% endif %}
+        {% if current_user.a_permission('helloasso', 'voir_liste') %}
+        <a href="{{ url_for('helloasso.index') }}" class="nav-link
+            {% if request.blueprint == 'helloasso' %}active{% endif %}">
+            <i class="bi bi-credit-card me-1"></i> HelloAsso
+        </a>
+        {% endif %}
+        {% if current_user.a_permission('badges', 'voir_liste') %}
+        <a href="{{ url_for('badges.index') }}" class="nav-link
+            {% if request.blueprint == 'badges' %}active{% endif %}">
+            <i class="bi bi-qr-code me-1"></i> Badges
+        </a>
+        {% endif %}
+        {% endif %}
+
+        {% if current_user.a_permission('livret', 'voir_liste') %}
+        <div class="nav-section">Publication</div>
+        <a href="{{ url_for('livret.index') }}" class="nav-link
+            {% if request.blueprint == 'livret' %}active{% endif %}">
+            <i class="bi bi-journal-text me-1"></i> Livret
+        </a>
+        {% endif %}
+
+        {% if current_user.a_permission('admin', 'voir_liste') %}
         <div class="nav-section">Administration</div>
-        <a href="{{ url_for('admin.tableau_de_bord') }}" class="nav-link">Administration</a>
+        <a href="{{ url_for('admin.tableau_de_bord') }}" class="nav-link
+            {% if request.blueprint == 'admin' %}active{% endif %}">
+            <i class="bi bi-gear me-1"></i> Administration
+        </a>
+        {% endif %}
     </div>
 </nav>
 <div id="main-content">

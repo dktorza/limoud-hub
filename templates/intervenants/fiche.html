@@ -226,6 +226,23 @@
                 {% else %}
                 <p class="text-muted small">Modification non autorisée.</p>
                 {% endif %}
+
+                {% if peut_modifier and intervenant.email_principal %}
+                <hr>
+                <h6 class="fw-bold mb-2">Formulaire intervenant</h6>
+                {% if token_actif %}
+                <p class="small text-muted mb-2">
+                    Un lien actif existe — expire le {{ token_actif.expire_at[:10] }}.
+                </p>
+                {% endif %}
+                <form method="POST"
+                      action="{{ url_for('intervenants.envoyer_formulaire', iid=intervenant.id) }}">
+                    <button type="submit" class="btn btn-sm btn-outline-primary"
+                            onclick="return confirm('Envoyer le formulaire à {{ intervenant.email_principal }} ?')">
+                        {{ 'Renvoyer' if token_actif else 'Envoyer' }} le formulaire
+                    </button>
+                </form>
+                {% endif %}
             </div>
         </div>
         {% else %}
@@ -267,6 +284,12 @@
                 </table>
                 {% else %}
                 <p class="text-muted small">Aucune session pour cette édition.</p>
+                {% endif %}
+                {% if peut_modifier %}
+                <div class="mt-3">
+                    <a href="{{ url_for('sessions.form', intervenant_id=intervenant.id) }}"
+                       class="btn btn-sm btn-limoud">+ Créer une nouvelle session</a>
+                </div>
                 {% endif %}
             </div>
         </div>

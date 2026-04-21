@@ -211,6 +211,7 @@ def form(sid=None):
             return redirect(url_for('sessions.liste'))
 
     eid = edition_courante_id()
+    intervenant_id = request.args.get('intervenant_id') or request.form.get('intervenant_id') or ''
 
     durees = query("""
         SELECT * FROM ref_durees_session
@@ -259,6 +260,19 @@ def form(sid=None):
                     audit('CREATE', 'sessions', new_id,
                           utilisateur_id=current_user.id,
                           nouvelle_valeur=data['titre'])
+                    iid_lien = request.form.get('intervenant_id', '').strip()
+                    if iid_lien:
+                        try:
+                            insert('session_intervenants', {
+                                'session_id':     new_id,
+                                'intervenant_id': int(iid_lien),
+                                'role_code':      'principal',
+                                'ordre_affichage': 1,
+                            })
+                        except Exception:
+                            pass
+                        flash('Session créée et intervenant lié.', 'success')
+                        return redirect(url_for('intervenants.fiche', iid=int(iid_lien)))
                     flash('Session créée.', 'success')
                     return redirect(url_for('sessions.fiche', sid=new_id))
             except Exception as e:
@@ -285,7 +299,8 @@ def form(sid=None):
                            themes=themes, formats=formats,
                            langues=langues, niveaux=niveaux, statuts=statuts,
                            editions=editions, edition_sel=edition_sel,
-                           edition_id=eid, durees=durees)
+                           edition_id=eid, durees=durees,
+                           intervenant_id=intervenant_id)
 
 
 # ------------------------------------------------------------------
