@@ -83,8 +83,15 @@ def liste():
 
     editions    = query("SELECT * FROM editions ORDER BY annee DESC")
     statuts     = query("SELECT * FROM ref_statuts_session ORDER BY ordre")
-    themes      = query("SELECT * FROM themes WHERE edition_id=? OR edition_id IS NULL ORDER BY ordre",
-                        (eid or 0,))
+    themes = query("""
+        SELECT * FROM themes
+        WHERE edition_id = ?
+        UNION
+        SELECT * FROM themes
+        WHERE edition_id IS NULL
+        AND code NOT IN (SELECT code FROM themes WHERE edition_id = ?)
+        ORDER BY ordre
+    """, (eid or 0, eid or 0))
     formats     = query("SELECT * FROM ref_formats_session WHERE actif=1 ORDER BY libelle")
     edition_sel = query("SELECT * FROM editions WHERE id=?", (eid,), one=True) if eid else None
 
@@ -245,8 +252,15 @@ def form(sid=None):
             except Exception as e:
                 flash(f'Erreur : {e}', 'danger')
 
-    themes  = query("SELECT * FROM themes WHERE edition_id=? OR edition_id IS NULL ORDER BY ordre",
-                    (eid or 0,))
+    themes = query("""
+        SELECT * FROM themes
+        WHERE edition_id = ?
+        UNION
+        SELECT * FROM themes
+        WHERE edition_id IS NULL
+        AND code NOT IN (SELECT code FROM themes WHERE edition_id = ?)
+        ORDER BY ordre
+    """, (eid or 0, eid or 0))
     formats = query("SELECT * FROM ref_formats_session WHERE actif=1 ORDER BY libelle")
     langues = query("SELECT * FROM ref_langues WHERE actif=1")
     niveaux = query("SELECT * FROM ref_niveaux_session ORDER BY ordre")
