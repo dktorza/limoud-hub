@@ -128,6 +128,15 @@ def create_app(env=None):
         }
 
     # ------------------------------------------------------------------
+    # Servir les fichiers uploadés
+    # ------------------------------------------------------------------
+    @app.route('/uploads/<path:filename>')
+    def uploaded_file(filename):
+        import os
+        from flask import send_from_directory
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+    # ------------------------------------------------------------------
     # Routes racine
     # ------------------------------------------------------------------
     @app.route('/')

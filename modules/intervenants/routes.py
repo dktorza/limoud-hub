@@ -10,6 +10,46 @@ from database import query, execute, insert, row_to_dict, audit
 
 bp = Blueprint('intervenants', __name__, template_folder='templates')
 
+_ALLOWED_PHOTO_EXTS = {'jpg', 'jpeg', 'png', 'webp'}
+_MAX_PHOTO_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+def _save_photo(file, iid):
+    """
+    Sauvegarde la photo uploadée pour l'intervenant iid.
+    Retourne (chemin_relatif, None) ou (None, message_erreur).
+    """
+    import os
+    from flask import current_app
+
+    if not file or not file.filename:
+        return None, None
+
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in _ALLOWED_PHOTO_EXTS:
+        return None, f"Format non autorisé ({ext}). Utilisez JPG, PNG ou WEBP."
+
+    # Vérifier la taille sans charger tout en mémoire
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > _MAX_PHOTO_BYTES:
+        return None, "La photo dépasse la taille limite de 5 MB."
+
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    folder = os.path.join(upload_folder, 'intervenants', str(iid))
+    os.makedirs(folder, exist_ok=True)
+
+    # Supprimer l'ancienne photo quelle que soit son extension
+    for old_ext in _ALLOWED_PHOTO_EXTS:
+        old_path = os.path.join(folder, f'photo.{old_ext}')
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    dest = os.path.join(folder, f'photo.{ext}')
+    file.save(dest)
+    return f'intervenants/{iid}/photo.{ext}', None
+
 
 def edition_courante_id():
     """Retourne l'id de l'édition sélectionnée (session Flask) ou la plus récente active."""
@@ -262,17 +302,26 @@ def form(iid=None):
             'notes_internes':       request.form.get('notes_internes', '').strip() or None,
         }
 
+        # Traitement photo (upload optionnel)
+        photo_file = request.files.get('photo')
+        photo_path_new, photo_err = _save_photo(photo_file, iid or 0)
+        if photo_err:
+            flash(photo_err, 'warning')
+
         try:
             if iid:
                 # Audit des changements
                 for champ, nouvelle_val in data.items():
-                    ancienne_val = intervenant[champ] if champ in intervenant.keys() else None
+                    ancienne_val = intervenant.get(champ)
                     if str(ancienne_val) != str(nouvelle_val):
                         audit('UPDATE', 'intervenants', iid,
                               champ=champ,
                               ancienne_valeur=ancienne_val,
                               nouvelle_valeur=nouvelle_val,
                               utilisateur_id=current_user.id)
+
+                if photo_path_new:
+                    data['photo_path'] = photo_path_new
 
                 cols = ', '.join(f"{k} = ?" for k in data.keys())
                 execute(f"UPDATE intervenants SET {cols}, updated_at = datetime('now') WHERE id = ?",
@@ -285,6 +334,14 @@ def form(iid=None):
                 audit('CREATE', 'intervenants', new_id,
                       utilisateur_id=current_user.id,
                       nouvelle_valeur=f"{data['prenom']} {data['nom']}")
+
+                # Re-sauvegarder la photo avec l'id réel (inconnu avant l'insert)
+                if photo_file and photo_file.filename:
+                    photo_file.seek(0)
+                    real_path, _ = _save_photo(photo_file, new_id)
+                    if real_path:
+                        execute("UPDATE intervenants SET photo_path=? WHERE id=?",
+                                (real_path, new_id))
 
                 # Créer une participation pour l'édition courante si elle existe
                 eid = edition_courante_id()
@@ -543,7 +600,8 @@ def formulaire_public(token, etape=1):
         SELECT t.*, i.civilite_code, i.nom, i.prenom, i.nom_affichage,
                i.fonction_titre, i.mini_bio, i.specialites, i.institutions,
                i.oeuvres_publications, i.site_web, i.twitter, i.instagram,
-               i.linkedin, i.accord_photo, i.accord_podcast, i.email_livret_choix
+               i.linkedin, i.accord_photo, i.accord_podcast, i.email_livret_choix,
+               i.photo_path
         FROM tokens_formulaire_intervenant t
         JOIN intervenants i ON i.id = t.intervenant_id
         WHERE t.token = ?
@@ -578,6 +636,12 @@ def formulaire_public(token, etape=1):
                 'accord_podcast':       1 if request.form.get('accord_podcast') else 0,
                 'email_livret_choix':   request.form.get('email_livret_choix', 'aucun'),
             }
+
+            photo_file = request.files.get('photo')
+            photo_path_new, _ = _save_photo(photo_file, iid)
+            if photo_path_new:
+                data['photo_path'] = photo_path_new
+
             cols = ', '.join(f"{k} = ?" for k in data.keys())
             execute(f"UPDATE intervenants SET {cols}, updated_at = datetime('now') WHERE id = ?",
                     list(data.values()) + [iid])

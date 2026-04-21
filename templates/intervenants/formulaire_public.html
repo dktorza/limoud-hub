@@ -65,7 +65,8 @@
 
         {# ── ÉTAPE 1 : Identité ──────────────────────────────── #}
         {% if etape == 1 %}
-        <form method="POST" action="{{ url_for('intervenants.formulaire_public', token=token, etape=1) }}">
+        <form method="POST" action="{{ url_for('intervenants.formulaire_public', token=token, etape=1) }}"
+              enctype="multipart/form-data">
             <div class="mb-3">
                 <label class="form-label fw-semibold">Civilité</label>
                 <select class="form-select" name="civilite_code">
@@ -89,6 +90,21 @@
                 <input type="text" class="form-control" name="fonction_titre"
                        value="{{ tok.fonction_titre or '' }}"
                        placeholder="Ex : Rabbin, Professeur de philosophie…">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Photo professionnelle</label>
+                {% if tok.photo_path %}
+                <div class="mb-2 d-flex align-items-center gap-3">
+                    <img src="/uploads/{{ tok.photo_path }}"
+                         alt="Votre photo actuelle"
+                         style="width:72px;height:72px;object-fit:cover;border-radius:50%;border:2px solid #dee2e6;">
+                    <span class="text-muted small">Photo actuelle — déposez-en une nouvelle pour la remplacer.</span>
+                </div>
+                {% endif %}
+                <input type="file" class="form-control" name="photo"
+                       accept=".jpg,.jpeg,.png,.webp">
+                <div class="form-text">Photo professionnelle recommandée · JPG, PNG ou WEBP · 5 MB max.</div>
             </div>
             <div class="mb-3">
                 <label class="form-label fw-semibold">Biographie courte</label>

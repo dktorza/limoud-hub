@@ -9,7 +9,7 @@
     <a href="{{ url_for('intervenants.liste') }}" class="btn btn-outline-secondary btn-sm">← Retour</a>
 </div>
 
-<form method="POST" id="formIntervenant">
+<form method="POST" id="formIntervenant" enctype="multipart/form-data">
 {% if session_id %}
 <input type="hidden" name="session_id" value="{{ session_id }}">
 {% endif %}
@@ -51,6 +51,20 @@
                         <input type="text" class="form-control form-control-sm" name="fonction_titre"
                                value="{{ intervenant.fonction_titre if intervenant else '' }}"
                                placeholder="Ex: Professeur d'histoire, Université Paris-Sorbonne">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Photo</label>
+                        <div class="d-flex align-items-center gap-3">
+                            {% if intervenant and intervenant.photo_path %}
+                            <img src="{{ url_for('uploaded_file', filename=intervenant.photo_path) }}"
+                                 alt="Photo" style="width:64px;height:64px;object-fit:cover;border-radius:50%;border:2px solid #dee2e6;">
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <input type="file" class="form-control form-control-sm" name="photo"
+                                       accept=".jpg,.jpeg,.png,.webp">
+                                <div class="form-text">JPG, PNG ou WEBP — 5 MB max.{% if intervenant and intervenant.photo_path %} Laisser vide pour conserver la photo actuelle.{% endif %}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
