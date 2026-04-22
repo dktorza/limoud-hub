@@ -55,6 +55,17 @@ class Config:
     OVH_SMS_SERVICE  = os.environ.get('OVH_SMS_SERVICE', '')  # ex: sms-xx1234-1
 
     # -------------------------------------------------------------------
+    # SharePoint (POC intégration)
+    # -------------------------------------------------------------------
+    SHAREPOINT_TENANT_ID    = os.environ.get('SHAREPOINT_TENANT_ID', '')
+    SHAREPOINT_CLIENT_ID    = os.environ.get('SHAREPOINT_CLIENT_ID', '')
+    SHAREPOINT_CLIENT_SECRET = os.environ.get('SHAREPOINT_CLIENT_SECRET', '')
+    SHAREPOINT_SITE_URL     = os.environ.get(
+        'SHAREPOINT_SITE_URL',
+        'https://limoudfrance.sharepoint.com/sites/LimoudOrga'
+    )
+
+    # -------------------------------------------------------------------
     # Fichiers / uploads
     # -------------------------------------------------------------------
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or os.path.join(

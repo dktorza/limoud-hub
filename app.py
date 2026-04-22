@@ -60,6 +60,7 @@ def create_app(env=None):
     from modules.helloasso.routes    import bp as helloasso_bp
     from modules.planning.routes     import bp as planning_bp
     from modules.livret.routes       import bp as livret_bp
+    from modules.sharepoint.routes   import bp as sharepoint_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp,        url_prefix='/admin')
@@ -70,6 +71,7 @@ def create_app(env=None):
     app.register_blueprint(helloasso_bp,    url_prefix='/helloasso')
     app.register_blueprint(planning_bp,     url_prefix='/planning')
     app.register_blueprint(livret_bp,       url_prefix='/livret')
+    app.register_blueprint(sharepoint_bp,   url_prefix='/sharepoint')
 
     # ------------------------------------------------------------------
     # Filtres Jinja2 utiles

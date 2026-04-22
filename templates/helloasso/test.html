@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}HelloAsso — Test API — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0">HelloAsso — POC API</h4>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('helloasso.test_connexion') }}" class="btn btn-sm btn-outline-primary">Tester la connexion</a>
+        <a href="{{ url_for('helloasso.sync_test') }}" class="btn btn-sm btn-outline-secondary">Sync test</a>
+    </div>
+</div>
+
+<!-- Statut connexion -->
+<div class="card mb-3">
+    <div class="card-body">
+        <h6 class="fw-bold mb-2">Statut OAuth2</h6>
+        {% if erreur %}
+        <div class="alert alert-danger mb-0">
+            <strong>Erreur :</strong> {{ erreur }}
+        </div>
+        {% elif token_ok %}
+        <div class="alert alert-success mb-0">
+            ✓ Token obtenu avec succès — organisation : <code>{{ org_slug }}</code>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Cliquez sur "Tester la connexion" pour démarrer.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Formulaires trouvés -->
+{% if formulaires is not none %}
+<div class="card mb-3">
+    <div class="card-body">
+        <h6 class="fw-bold mb-3">Formulaires trouvés ({{ formulaires|length }})</h6>
+        {% if formulaires %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr><th>Titre</th><th>Type</th><th>Slug</th><th>Statut</th></tr>
+                </thead>
+                <tbody>
+                {% for f in formulaires %}
+                <tr>
+                    <td class="fw-semibold">{{ f.get('title') or f.get('name') or '—' }}</td>
+                    <td><span class="badge bg-secondary">{{ f.get('formType', '—') }}</span></td>
+                    <td class="font-monospace small">{{ f.get('url', '—').split('/')[-1] if f.get('url') else f.get('slug','—') }}</td>
+                    <td>{{ f.get('state', '—') }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Aucun formulaire trouvé.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Sync test -->
+{% if sync_data %}
+<div class="card mb-3">
+    <div class="card-body">
+        <h6 class="fw-bold mb-2">Items bruts — <code>{{ form_slug }}</code></h6>
+        <p class="text-muted small">{{ (sync_data.items_raw or [])|length }} items récupérés.</p>
+        {% if sync_data.items_raw %}
+        <pre class="bg-light p-3 rounded small" style="max-height:240px;overflow:auto">{{ sync_data.items_raw[:3]|tojson(indent=2) }}</pre>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h6 class="fw-bold mb-3">Mapping vers la BDD participants</h6>
+        {% if sync_data.items_mapped %}
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ha_item_id</th><th>Nom</th><th>Prénom</th>
+                        <th>Email</th><th>Type</th><th>Montant HT</th>
+                        <th>Réf. commande</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for m in sync_data.items_mapped %}
+                <tr>
+                    <td class="font-monospace small">{{ m.ha_item_id }}</td>
+                    <td>{{ m.nom or '—' }}</td>
+                    <td>{{ m.prenom or '—' }}</td>
+                    <td class="small">{{ m.email or '—' }}</td>
+                    <td><span class="badge bg-secondary">{{ m.type_formulaire or '—' }}</span></td>
+                    <td>{{ m.montant_ht }} €</td>
+                    <td class="font-monospace small">{{ m.ha_reference_commande or '—' }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Aucun item à mapper.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

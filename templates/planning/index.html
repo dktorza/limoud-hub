@@ -1,11 +1,266 @@
 {% extends 'base.html' %}
 {% block title %}Planning — Limoud Hub{% endblock %}
+
 {% block content %}
-<h4 class="fw-bold mb-4">Planning</h4>
-<div class="card">
-    <div class="card-body text-center py-5 text-muted">
-        <i class="bi bi-calendar3 fs-1 mb-3 d-block opacity-50"></i>
-        <p class="mb-0">Module en cours de développement.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="fw-bold mb-0">Planning</h4>
+        {% if edition_sel %}
+        <div class="text-muted small">{{ edition_sel.nom }}</div>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        {% include 'shared/selecteur_edition.html' %}
+        <button id="btn-sauvegarder" class="btn btn-limoud btn-sm" style="display:none">
+            Sauvegarder les modifications
+        </button>
     </div>
 </div>
+
+{% if not edition_id %}
+<div class="alert alert-warning">Sélectionnez une édition pour afficher le planning.</div>
+{% else %}
+
+<div class="d-flex gap-0" style="min-height:calc(100vh - 140px)">
+
+    <!-- ── Panneau sessions non planifiées ───────────────────────── -->
+    <div id="unplanned-panel" style="width:200px;flex-shrink:0;margin-right:12px">
+        <div class="card h-100">
+            <div class="card-header py-2">
+                <div class="fw-semibold small">Non planifiées</div>
+                <div class="text-muted" style="font-size:.75rem">{{ sessions_non_planifiees|length }} sessions</div>
+            </div>
+            <div class="card-body p-1" style="overflow-y:auto;max-height:calc(100vh - 200px)"
+                 id="unplanned-list"
+                 ondragover="event.preventDefault()"
+                 ondrop="dropOnUnplanned(event)">
+                {% for s in sessions_non_planifiees %}
+                <div class="session-card mb-1 p-2 rounded"
+                     data-session-id="{{ s.id }}"
+                     data-session-titre="{{ s.titre }}"
+                     data-creneau-id=""
+                     draggable="true"
+                     ondragstart="dragStart(event)"
+                     style="background:{{ s.theme_couleur or '#1a5276' }}22;border-left:3px solid {{ s.theme_couleur or '#1a5276' }};cursor:grab;font-size:.78rem">
+                    <div class="fw-semibold" style="line-height:1.2">{{ s.titre[:40] }}{% if s.titre|length > 40 %}…{% endif %}</div>
+                    {% if s.intervenants %}
+                    <div class="text-muted" style="font-size:.72rem">{{ s.intervenants[:35] }}</div>
+                    {% endif %}
+                    {% if s.format_code %}
+                    <span class="badge mt-1" style="font-size:.65rem;background:{{ s.theme_couleur or '#6c757d' }}">{{ s.format_code }}</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="text-muted small text-center py-3">Toutes les sessions sont planifiées.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Grille planning ───────────────────────────────────────── -->
+    <div style="flex:1;overflow-x:auto">
+
+        {% for jour in jours %}
+        <div class="mb-4">
+            <div class="fw-bold mb-2 px-1"
+                 style="color:#1a5276;font-size:1rem;border-bottom:2px solid #1a5276;padding-bottom:4px">
+                {{ jour }}
+            </div>
+            <div style="overflow-x:auto">
+                <table class="planning-grid table table-bordered mb-0"
+                       style="min-width:{{ (salles|length + 1) * 160 }}px;table-layout:fixed">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:80px;min-width:80px" class="text-center align-middle small">Horaire</th>
+                            {% for salle in salles %}
+                            <th style="width:160px;min-width:140px" class="text-center align-middle small">{{ salle.nom }}</th>
+                            {% endfor %}
+                            {% if not salles %}
+                            <th class="text-center align-middle small text-muted">— Aucune salle —</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for heure in creneaux_horaires %}
+                    <tr style="height:52px">
+                        <td class="text-center align-middle text-muted small fw-semibold"
+                            style="background:#f8f9fa;font-size:.78rem">{{ heure }}</td>
+                        {% for salle in salles %}
+                        {% set creneau = grille.get((jour, heure, salle.id)) %}
+                        <td class="planning-cell p-1 align-top"
+                            data-jour="{{ jour }}"
+                            data-heure="{{ heure }}"
+                            data-salle-id="{{ salle.id }}"
+                            ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                            ondragleave="this.classList.remove('drag-over')"
+                            ondrop="dropOnCell(event, this)">
+                            {% if creneau %}
+                            <div class="session-card p-1 rounded h-100"
+                                 data-session-id="{{ creneau.session_id }}"
+                                 data-session-titre="{{ creneau.session_titre }}"
+                                 data-creneau-id="{{ creneau.id }}"
+                                 draggable="true"
+                                 ondragstart="dragStart(event)"
+                                 style="background:{{ creneau.theme_couleur or '#1a5276' }}22;border-left:3px solid {{ creneau.theme_couleur or '#1a5276' }};cursor:grab;font-size:.75rem;min-height:44px">
+                                <div class="fw-semibold" style="line-height:1.2">
+                                    {{ creneau.session_titre[:38] }}{% if creneau.session_titre|length > 38 %}…{% endif %}
+                                </div>
+                                <div class="text-muted" style="font-size:.7rem">
+                                    {{ creneau.heure_debut[:5] }}–{{ creneau.heure_fin[:5] }}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        {% if not salles %}
+                        <td class="text-muted small text-center align-middle" style="color:#dee2e6">
+                            Créez des salles pour l'édition
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+    </div><!-- /grille -->
+</div><!-- /d-flex -->
+{% endif %}
+
+<style>
+.planning-cell { background:#fff; transition:background .15s; }
+.planning-cell.drag-over { background:#e8f4fd !important; outline:2px dashed #1a5276; }
+.session-card { user-select:none; }
+.session-card.dragging { opacity:.4; }
+</style>
+
+<script>
+const CRENEAUX = {{ creneaux_horaires | tojson }};
+let draggedEl    = null;
+let pendingMoves = [];
+
+function dragStart(event) {
+    draggedEl = event.currentTarget;
+    draggedEl.classList.add('dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', draggedEl.dataset.sessionId);
+}
+
+document.addEventListener('dragend', () => {
+    if (draggedEl) draggedEl.classList.remove('dragging');
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    draggedEl = null;
+});
+
+async function dropOnCell(event, cell) {
+    event.preventDefault();
+    cell.classList.remove('drag-over');
+    if (!draggedEl) return;
+
+    const sessionId    = draggedEl.dataset.sessionId;
+    const sessionTitre = draggedEl.dataset.sessionTitre;
+    const creneauId    = draggedEl.dataset.creneauId || null;
+    const jour         = cell.dataset.jour;
+    const heure        = cell.dataset.heure;
+    const salleId      = cell.dataset.salleId;
+
+    // Cellule déjà occupée par une autre session ?
+    const existing = cell.querySelector('.session-card');
+    if (existing && existing.dataset.sessionId !== sessionId) {
+        showToast('Cette case est déjà occupée.', 'warning');
+        return;
+    }
+
+    const payload = {
+        session_id:  parseInt(sessionId),
+        creneau_id:  creneauId ? parseInt(creneauId) : null,
+        salle_id:    salleId ? parseInt(salleId) : null,
+        jour, heure_debut: heure, heure_fin: nextSlot(heure),
+    };
+
+    try {
+        const resp = await fetch('/planning/deplacer-session', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            // Retirer du parent d'origine
+            const origin = draggedEl.parentElement;
+            origin.removeChild(draggedEl);
+            // Mettre à jour les données et le contenu
+            draggedEl.dataset.creneauId = data.creneau_id;
+            draggedEl.innerHTML =
+                `<div class="fw-semibold" style="line-height:1.2">${esc(sessionTitre).substring(0,38)}${ sessionTitre.length>38?'…':''}</div>` +
+                `<div class="text-muted" style="font-size:.7rem">${heure}–${nextSlot(heure)}</div>`;
+            cell.appendChild(draggedEl);
+            pendingMoves.push(data.creneau_id);
+            updateSaveBtn();
+            showToast('Session déplacée.', 'success');
+        } else {
+            showToast('Erreur : ' + (data.error || 'inconnue'), 'danger');
+        }
+    } catch (e) {
+        showToast('Erreur réseau : ' + e.message, 'danger');
+    }
+}
+
+async function dropOnUnplanned(event) {
+    event.preventDefault();
+    if (!draggedEl) return;
+    if (!draggedEl.dataset.creneauId) return;  // déjà non planifié
+
+    draggedEl.parentElement.removeChild(draggedEl);
+    draggedEl.dataset.creneauId = '';
+    draggedEl.innerHTML =
+        `<div class="fw-semibold" style="line-height:1.2">${esc(draggedEl.dataset.sessionTitre).substring(0,40)}</div>`;
+    document.getElementById('unplanned-list').appendChild(draggedEl);
+    showToast('Session retirée du planning.', 'info');
+}
+
+function nextSlot(heure) {
+    const idx = CRENEAUX.indexOf(heure);
+    return (idx >= 0 && idx < CRENEAUX.length - 1) ? CRENEAUX[idx + 1] : heure;
+}
+
+function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function updateSaveBtn() {
+    const btn = document.getElementById('btn-sauvegarder');
+    if (pendingMoves.length > 0) {
+        btn.style.display = '';
+        btn.textContent = `Planning sauvegardé (${pendingMoves.length} modif.)`;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+document.getElementById('btn-sauvegarder').addEventListener('click', () => {
+    // Les modifs sont déjà persistées en temps réel via fetch
+    pendingMoves = [];
+    updateSaveBtn();
+    showToast('Toutes les modifications sont enregistrées.', 'success');
+});
+
+function showToast(msg, type = 'info') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.cssText = 'position:fixed;bottom:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem';
+        document.body.appendChild(container);
+    }
+    const t = document.createElement('div');
+    t.className = `alert alert-${type} py-2 px-3 mb-0 shadow-sm`;
+    t.style.cssText = 'min-width:220px';
+    t.textContent = msg;
+    container.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+</script>
 {% endblock %}

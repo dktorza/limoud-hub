@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}SharePoint — Test API — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0">SharePoint — POC API</h4>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('sharepoint.test_connexion') }}" class="btn btn-sm btn-outline-primary">Tester la connexion</a>
+        <a href="{{ url_for('sharepoint.preview_intervenants') }}" class="btn btn-sm btn-outline-secondary">Preview intervenants</a>
+    </div>
+</div>
+
+<!-- Statut connexion -->
+<div class="card mb-3">
+    <div class="card-body">
+        <h6 class="fw-bold mb-2">Statut Azure AD / SharePoint</h6>
+        {% if erreur %}
+        <div class="alert alert-danger mb-0">
+            <strong>Erreur :</strong> {{ erreur }}
+        </div>
+        {% elif token_ok %}
+        <div class="alert alert-success mb-0">
+            ✓ Token Azure AD obtenu avec succès.
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Cliquez sur "Tester la connexion" pour démarrer.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Listes disponibles -->
+{% if listes is not none %}
+<div class="card mb-3">
+    <div class="card-body">
+        <h6 class="fw-bold mb-3">Listes SharePoint disponibles ({{ listes|length }})</h6>
+        {% if listes %}
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr><th>Nom de la liste</th><th class="text-end">Items</th></tr>
+                </thead>
+                <tbody>
+                {% for l in listes %}
+                <tr>
+                    <td class="fw-semibold">{{ l.get('Title', '?') }}</td>
+                    <td class="text-end"><span class="badge bg-secondary">{{ l.get('ItemCount', 0) }}</span></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Aucune liste trouvée.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Preview intervenants -->
+{% if preview %}
+<div class="card mb-3">
+    <div class="card-body">
+        <h6 class="fw-bold mb-2">Liste SharePoint : <code>{{ preview.list_name }}</code></h6>
+        <p class="text-muted small mb-2">Table BDD cible : <strong>{{ preview.mapping_def.get('table', '?') }}</strong></p>
+
+        {% if preview.champs_disponibles %}
+        <div class="mb-3">
+            <div class="text-muted small fw-semibold mb-1">Champs disponibles dans SharePoint :</div>
+            <div class="d-flex flex-wrap gap-1">
+            {% for c in preview.champs_disponibles %}
+                {% if c in preview.mapping_def.get('champs', {}) %}
+                <span class="badge bg-success">{{ c }}</span>
+                {% else %}
+                <span class="badge bg-light text-dark border">{{ c }}</span>
+                {% endif %}
+            {% endfor %}
+            </div>
+            <div class="form-text mt-1">Vert = mappé vers la BDD · Gris = non mappé</div>
+        </div>
+        {% endif %}
+
+        {% if preview.mapping_def.get('champs') %}
+        <div class="mb-3">
+            <div class="text-muted small fw-semibold mb-1">Mapping SharePoint → BDD :</div>
+            <table class="table table-sm mb-0" style="max-width:480px">
+                <thead class="table-light"><tr><th>Champ SharePoint</th><th>Colonne BDD</th></tr></thead>
+                <tbody>
+                {% for sp, bdd in preview.mapping_def.get('champs', {}).items() %}
+                <tr>
+                    <td class="font-monospace small">{{ sp }}</td>
+                    <td class="font-monospace small text-success">{{ bdd }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if preview.items_mapped %}
+<div class="card">
+    <div class="card-body">
+        <h6 class="fw-bold mb-3">5 premiers items — après mapping BDD</h6>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>nom</th><th>prenom</th><th>email_principal</th>
+                        <th>fonction_titre</th><th>mini_bio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for m in preview.items_mapped %}
+                <tr>
+                    <td>{{ m.get('nom') or '—' }}</td>
+                    <td>{{ m.get('prenom') or '—' }}</td>
+                    <td class="small">{{ m.get('email_principal') or '—' }}</td>
+                    <td class="small text-muted">{{ (m.get('fonction_titre') or '—')[:40] }}</td>
+                    <td class="small text-muted">{{ (m.get('mini_bio') or '—')[:60] }}…</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
