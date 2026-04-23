@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}SharePoint — Limoud Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0"><i class="bi bi-cloud-arrow-down me-2"></i>SharePoint — Intégration</h4>
+    <a href="{{ url_for('sharepoint.test_connexion') }}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-wifi me-1"></i> Tester la connexion
+    </a>
+</div>
+
+{% if not config_ok %}
+<div class="alert alert-warning">
+    <strong>Configuration incomplète.</strong>
+    Les variables <code>SHAREPOINT_TENANT_ID</code>, <code>SHAREPOINT_CLIENT_ID</code>,
+    <code>SHAREPOINT_CLIENT_SECRET</code> et <code>SHAREPOINT_SITE_URL</code> doivent être
+    définies dans le fichier <code>.env</code>.
+    <a href="{{ url_for('admin.parametres') }}" class="alert-link">Voir les paramètres →</a>
+</div>
+{% else %}
+<div class="alert alert-success py-2">
+    <i class="bi bi-check-circle me-1"></i> Configuration SharePoint détectée.
+</div>
+{% endif %}
+
+{% if edition %}
+<div class="row g-3 mt-1">
+
+    <!-- Salles -->
+    <div class="col-sm-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-door-open me-1 text-primary"></i> Salles</h6>
+                    <span class="badge bg-secondary">{{ nb_salles }} en BDD</span>
+                </div>
+                <p class="text-muted small mb-3">
+                    Récupère la liste <strong>Salles d'intervention</strong> depuis SharePoint
+                    et l'importe dans Limoud Hub pour l'édition courante.
+                </p>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('sharepoint.preview_salles') }}" class="btn btn-sm btn-limoud">
+                        <i class="bi bi-eye me-1"></i> Preview & Import
+                    </a>
+                    <a href="{{ url_for('planning.salles_liste') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-list-ul me-1"></i> Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plages horaires -->
+    <div class="col-sm-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-clock me-1 text-warning"></i> Plages horaires</h6>
+                    <span class="badge bg-secondary">{{ nb_plages }} en BDD</span>
+                </div>
+                <p class="text-muted small mb-3">
+                    Récupère les créneaux ouverts/fermés depuis la liste
+                    <strong>Plages horaires</strong> de SharePoint.
+                </p>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('sharepoint.preview_plages') }}" class="btn btn-sm btn-limoud">
+                        <i class="bi bi-eye me-1"></i> Preview & Import
+                    </a>
+                    <a href="{{ url_for('planning.plages_liste') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-list-ul me-1"></i> Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Intervenants -->
+    <div class="col-sm-6 col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-person-badge me-1 text-success"></i> Intervenants</h6>
+                    <span class="badge bg-light text-dark border">POC</span>
+                </div>
+                <p class="text-muted small mb-3">
+                    Prévisualise le mapping de la liste <strong>Base Intervenants</strong>
+                    vers la table <code>intervenants</code>.
+                </p>
+                <a href="{{ url_for('sharepoint.preview_intervenants') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-eye me-1"></i> Preview
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="mt-3 text-muted small">
+    <i class="bi bi-info-circle me-1"></i>
+    Édition courante : <strong>{{ edition.nom }}</strong>
+    ({{ edition.date_debut[:10] if edition.date_debut else '?' }}
+     → {{ edition.date_fin[:10] if edition.date_fin else '?' }})
+</div>
+{% else %}
+<div class="alert alert-warning mt-3">
+    Aucune édition active sélectionnée. Sélectionnez une édition pour importer des données.
+</div>
+{% endif %}
+{% endblock %}

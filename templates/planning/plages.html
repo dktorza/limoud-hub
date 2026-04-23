@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Plages horaires — Planning — Limoud Hub{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('planning.index') }}">Planning</a></li>
+        <li class="breadcrumb-item active">Plages horaires</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-clock me-2"></i>Plages horaires</h4>
+        {% if edition_sel %}
+        <div class="text-muted small">{{ edition_sel.nom }}</div>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        {% include 'shared/selecteur_edition.html' %}
+        <a href="{{ url_for('sharepoint.preview_plages') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-cloud-arrow-down me-1"></i> Importer SP
+        </a>
+        {% if edition_id %}
+        <form action="{{ url_for('planning.plages_init_defaut') }}" method="post"
+              onsubmit="return confirm('Initialiser avec les horaires par défaut ? Les plages existantes seront conservées.')">
+            <button class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-magic me-1"></i> Init. défaut
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if not edition_id %}
+<div class="alert alert-warning">Sélectionnez une édition pour gérer les plages horaires.</div>
+{% else %}
+
+{% if not plages %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-1"></i>
+    Aucune plage définie — le planning utilise les <strong>{{ creneaux_defaut|length }} horaires par défaut</strong>.
+    Cliquez sur <strong>Init. défaut</strong> pour les enregistrer et les personnaliser.
+</div>
+{% endif %}
+
+<div class="row g-3">
+    {% for jour in jours %}
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">{{ jour }}</span>
+                <span class="badge bg-secondary">{{ par_jour[jour]|length }} plage(s)</span>
+            </div>
+            <div class="card-body p-0">
+                {% if par_jour[jour] %}
+                <ul class="list-group list-group-flush">
+                {% for p in par_jour[jour] %}
+                <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="font-monospace small fw-semibold">{{ p.heure_debut }}</span>
+                        {% if p.ouvert %}
+                        <span class="badge bg-success" style="font-size:.65rem">Ouvert</span>
+                        {% else %}
+                        <span class="badge bg-secondary" style="font-size:.65rem">Fermé</span>
+                        {% endif %}
+                        {% if p.note %}
+                        <span class="text-muted" style="font-size:.75rem">{{ p.note }}</span>
+                        {% endif %}
+                    </div>
+                    <form action="{{ url_for('planning.plage_supprimer', plage_id=p.id) }}"
+                          method="post"
+                          onsubmit="return confirm('Supprimer {{ jour }} {{ p.heure_debut }} ?')">
+                        <button class="btn btn-sm btn-outline-danger py-0 px-1">
+                            <i class="bi bi-x" style="font-size:.8rem"></i>
+                        </button>
+                    </form>
+                </li>
+                {% endfor %}
+                </ul>
+                {% else %}
+                <div class="p-3 text-center text-muted small">Aucune plage.</div>
+                {% endif %}
+
+                <!-- Ajout rapide pour ce jour -->
+                <div class="border-top p-2">
+                    <form action="{{ url_for('planning.plage_ajouter') }}" method="post"
+                          class="d-flex gap-1 align-items-center">
+                        <input type="hidden" name="jour" value="{{ jour }}">
+                        <input type="time" name="heure_debut" class="form-control form-control-sm"
+                               style="width:100px" step="1800" required>
+                        <select name="ouvert" class="form-select form-select-sm" style="width:80px">
+                            <option value="1">Ouvert</option>
+                            <option value="">Fermé</option>
+                        </select>
+                        <button class="btn btn-sm btn-limoud flex-shrink-0">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if plages %}
+<div class="mt-3 text-muted small">
+    <i class="bi bi-info-circle me-1"></i>
+    Ces plages définissent les lignes affichées dans le planning.
+    Seules les plages <strong>ouvertes</strong> apparaissent dans la grille.
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

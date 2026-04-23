@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% block title %}Salles — Planning — Limoud Hub{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('planning.index') }}">Planning</a></li>
+        <li class="breadcrumb-item active">Salles</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-door-open me-2"></i>Salles</h4>
+        {% if edition_sel %}
+        <div class="text-muted small">{{ edition_sel.nom }}</div>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        {% include 'shared/selecteur_edition.html' %}
+        <a href="{{ url_for('sharepoint.preview_salles') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-cloud-arrow-down me-1"></i> Importer depuis SharePoint
+        </a>
+    </div>
+</div>
+
+{% if not edition_id %}
+<div class="alert alert-warning">Sélectionnez une édition pour gérer les salles.</div>
+{% else %}
+
+<div class="row g-3">
+
+    <!-- Liste des salles -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header py-2 fw-semibold small">
+                Salles ({{ salles|length }})
+            </div>
+            <div class="card-body p-0">
+                {% if salles %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nom</th>
+                                <th class="text-center">Capacité</th>
+                                <th>Étage</th>
+                                <th>Type</th>
+                                <th>Statut</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for s in salles %}
+                        <tr class="{% if not s.actif %}text-muted{% endif %}">
+                            <td class="fw-semibold">{{ s.nom }}</td>
+                            <td class="text-center">{{ s.capacite or '—' }}</td>
+                            <td class="small">{{ s.etage or '—' }}</td>
+                            <td class="small">{{ s.type_salle or '—' }}</td>
+                            <td>
+                                {% if s.actif %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <button class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalModifier{{ s.id }}"
+                                            title="Modifier">
+                                        <i class="bi bi-pencil" style="font-size:.75rem"></i>
+                                    </button>
+                                    {% if s.actif %}
+                                    <form action="{{ url_for('planning.salle_desactiver', salle_id=s.id) }}"
+                                          method="post"
+                                          onsubmit="return confirm('Désactiver « {{ s.nom }} » ?')">
+                                        <button class="btn btn-sm btn-outline-danger py-0 px-2" title="Désactiver">
+                                            <i class="bi bi-eye-slash" style="font-size:.75rem"></i>
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <form action="{{ url_for('planning.salle_reactiver', salle_id=s.id) }}"
+                                          method="post">
+                                        <button class="btn btn-sm btn-outline-success py-0 px-2" title="Réactiver">
+                                            <i class="bi bi-eye" style="font-size:.75rem"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    Aucune salle pour cette édition.
+                    <a href="{{ url_for('sharepoint.preview_salles') }}">Importer depuis SharePoint</a>
+                    ou ajoutez-en une ci-contre.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulaire d'ajout -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header py-2 fw-semibold small">
+                <i class="bi bi-plus-circle me-1"></i> Nouvelle salle
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('planning.salle_creer') }}" method="post">
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Nom <span class="text-danger">*</span></label>
+                        <input type="text" name="nom" class="form-control form-control-sm"
+                               placeholder="Grande salle" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Capacité</label>
+                        <input type="number" name="capacite" class="form-control form-control-sm"
+                               placeholder="200" min="1">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Étage</label>
+                        <input type="text" name="etage" class="form-control form-control-sm"
+                               placeholder="RDC">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Type de salle</label>
+                        <input type="text" name="type_salle" class="form-control form-control-sm"
+                               placeholder="Conférence, Atelier…">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small mb-1">Note</label>
+                        <textarea name="note" class="form-control form-control-sm" rows="2"></textarea>
+                    </div>
+                    <button class="btn btn-limoud btn-sm w-100">
+                        <i class="bi bi-plus me-1"></i> Créer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modals de modification -->
+{% for s in salles %}
+<div class="modal fade" id="modalModifier{{ s.id }}" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title fw-bold">Modifier — {{ s.nom }}</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('planning.salle_modifier', salle_id=s.id) }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Nom *</label>
+                        <input type="text" name="nom" class="form-control form-control-sm"
+                               value="{{ s.nom }}" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Capacité</label>
+                        <input type="number" name="capacite" class="form-control form-control-sm"
+                               value="{{ s.capacite or '' }}">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Étage</label>
+                        <input type="text" name="etage" class="form-control form-control-sm"
+                               value="{{ s.etage or '' }}">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Type de salle</label>
+                        <input type="text" name="type_salle" class="form-control form-control-sm"
+                               value="{{ s.type_salle or '' }}">
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small mb-1">Note</label>
+                        <textarea name="note" class="form-control form-control-sm" rows="2">{{ s.note or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            data-bs-dismiss="modal">Annuler</button>
+                    <button class="btn btn-sm btn-limoud">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endif %}
+{% endblock %}

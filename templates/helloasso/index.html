@@ -1,11 +1,81 @@
 {% extends 'base.html' %}
 {% block title %}HelloAsso — Limoud Hub{% endblock %}
 {% block content %}
-<h4 class="fw-bold mb-4">HelloAsso</h4>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0"><i class="bi bi-credit-card me-2"></i>HelloAsso</h4>
+</div>
+
+{% if not config_ok %}
+<div class="alert alert-warning">
+    <strong>Configuration manquante.</strong>
+    Renseignez <code>HELLOASSO_CLIENT_ID</code>, <code>HELLOASSO_CLIENT_SECRET</code>
+    et <code>HELLOASSO_ORG_SLUG</code> dans le fichier <code>.env</code>.
+    <a href="{{ url_for('admin.parametres') }}" class="alert-link">Voir les paramètres →</a>
+</div>
+{% elif erreur %}
+<div class="alert alert-danger">
+    <strong>Erreur API HelloAsso :</strong> {{ erreur }}
+</div>
+{% elif token_ok %}
+<div class="alert alert-success py-2">
+    <i class="bi bi-check-circle me-1"></i>
+    Connexion OK — organisation : <code>{{ org_slug }}</code>
+</div>
+{% endif %}
+
+{% if formulaires is not none %}
 <div class="card">
-    <div class="card-body text-center py-5 text-muted">
-        <i class="bi bi-credit-card fs-1 mb-3 d-block opacity-50"></i>
-        <p class="mb-0">Module en cours de développement.</p>
+    <div class="card-header py-2 fw-semibold small">
+        <i class="bi bi-list-ul me-1"></i>
+        Formulaires HelloAsso ({{ formulaires|length }})
+    </div>
+    <div class="card-body p-0">
+        {% if formulaires %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Titre</th>
+                        <th>Type</th>
+                        <th>Slug</th>
+                        <th>Statut</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for f in formulaires %}
+                {% set ftype = f.get('formType') or f.get('type') or 'Event' %}
+                {% set fslug = (f.get('url') or '').split('/')[-1] or f.get('slug') or '' %}
+                <tr>
+                    <td class="fw-semibold">{{ f.get('title') or f.get('name') or '—' }}</td>
+                    <td><span class="badge bg-secondary">{{ ftype }}</span></td>
+                    <td class="font-monospace small text-muted">{{ fslug }}</td>
+                    <td>
+                        {% if f.get('state') == 'Public' %}
+                        <span class="badge bg-success">Public</span>
+                        {% else %}
+                        <span class="badge bg-light text-dark border">{{ f.get('state', '—') }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if fslug %}
+                        <a href="{{ url_for('helloasso.sync_formulaire', form_type=ftype, form_slug=fslug) }}"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye me-1"></i>Prévisualiser
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+            Aucun formulaire trouvé pour l'organisation <code>{{ org_slug }}</code>.
+        </div>
+        {% endif %}
     </div>
 </div>
+{% endif %}
 {% endblock %}

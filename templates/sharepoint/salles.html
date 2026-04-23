@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}SharePoint — Salles — Limoud Hub{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('sharepoint.index') }}">SharePoint</a></li>
+        <li class="breadcrumb-item active">Salles</li>
+    </ol>
+</nav>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0"><i class="bi bi-door-open me-2"></i>Salles — SharePoint</h4>
+    {% if edition %}
+    <span class="badge bg-secondary">{{ edition.nom }}</span>
+    {% endif %}
+</div>
+
+{% if not edition_id %}
+<div class="alert alert-warning">Sélectionnez une édition pour importer des salles.</div>
+{% else %}
+
+<!-- Statut connexion -->
+{% if erreur %}
+<div class="alert alert-danger">
+    <strong>Erreur SharePoint :</strong> {{ erreur }}
+    <div class="mt-2 small text-muted">
+        Vérifiez la configuration Azure AD et que la liste
+        <code>Salles d'intervention</code> existe sur votre site SharePoint.
+    </div>
+</div>
+{% elif token_ok and items_sp is not none %}
+<div class="alert alert-success py-2">
+    <i class="bi bi-check-circle me-1"></i>
+    Connexion OK — {{ items_sp|length }} salle(s) trouvée(s) dans SharePoint.
+</div>
+{% endif %}
+
+<div class="row g-3">
+
+    <!-- Données SharePoint -->
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold small">
+                    <i class="bi bi-cloud me-1"></i> SharePoint — liste "Salles d'intervention"
+                </span>
+                {% if items_sp %}
+                <form action="{{ url_for('sharepoint.import_salles') }}" method="post">
+                    <button class="btn btn-sm btn-limoud"
+                            onclick="return confirm('Importer {{ items_sp|length }} salle(s) pour {{ edition.nom if edition else \"cette édition\" }} ?')">
+                        <i class="bi bi-download me-1"></i> Importer tout ({{ items_sp|length }})
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if items_sp %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nom</th>
+                                <th class="text-center">Capacité</th>
+                                <th>Étage</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for s in items_sp %}
+                        <tr>
+                            <td class="fw-semibold">{{ s.get('nom') or '—' }}</td>
+                            <td class="text-center">{{ s.get('capacite') or '—' }}</td>
+                            <td class="text-muted small">{{ s.get('etage') or '—' }}</td>
+                            <td class="text-muted small">{{ s.get('type_salle') or '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% elif not erreur %}
+                <div class="p-4 text-center text-muted">
+                    {% if token_ok %}
+                    Aucune salle trouvée dans SharePoint.
+                    {% else %}
+                    <a href="{{ url_for('sharepoint.test_connexion') }}">Tester la connexion SharePoint</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Données BDD -->
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold small">
+                    <i class="bi bi-database me-1"></i> BDD Limoud Hub
+                </span>
+                <a href="{{ url_for('planning.salles_liste') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-pencil me-1"></i> Gérer
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if salles_bdd %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr><th>Nom</th><th class="text-center">Capacité</th></tr>
+                        </thead>
+                        <tbody>
+                        {% for s in salles_bdd %}
+                        <tr>
+                            <td>{{ s.nom }}</td>
+                            <td class="text-center text-muted">{{ s.capacite or '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted small">
+                    Aucune salle en base pour cette édition.<br>
+                    {% if items_sp %}
+                    Importez depuis SharePoint ci-contre.
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endif %}
+{% endblock %}

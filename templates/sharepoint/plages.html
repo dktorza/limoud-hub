@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}SharePoint — Plages horaires — Limoud Hub{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('sharepoint.index') }}">SharePoint</a></li>
+        <li class="breadcrumb-item active">Plages horaires</li>
+    </ol>
+</nav>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold mb-0"><i class="bi bi-clock me-2"></i>Plages horaires — SharePoint</h4>
+    {% if edition %}
+    <span class="badge bg-secondary">{{ edition.nom }}</span>
+    {% endif %}
+</div>
+
+{% if not edition_id %}
+<div class="alert alert-warning">Sélectionnez une édition pour importer des plages.</div>
+{% else %}
+
+{% if erreur %}
+<div class="alert alert-warning">
+    <strong>Liste SharePoint introuvable :</strong> {{ erreur }}
+    <div class="small mt-1">
+        Créez une liste <code>Plages horaires</code> dans SharePoint avec les colonnes :
+        <code>Jour</code>, <code>HeureDebut</code>, <code>Ouvert</code> (Oui/Non), <code>Note</code>.
+        En attendant, gérez les plages directement dans Limoud Hub ci-dessous.
+    </div>
+</div>
+{% elif token_ok and items_sp is not none %}
+<div class="alert alert-success py-2">
+    <i class="bi bi-check-circle me-1"></i>
+    {{ items_sp|length }} plage(s) trouvée(s) dans SharePoint.
+</div>
+{% endif %}
+
+<div class="row g-3">
+
+    <!-- Données SharePoint -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold small">
+                    <i class="bi bi-cloud me-1"></i> SharePoint — "Plages horaires"
+                </span>
+                {% if items_sp %}
+                <form action="{{ url_for('sharepoint.import_plages') }}" method="post">
+                    <button class="btn btn-sm btn-limoud"
+                            onclick="return confirm('Importer {{ items_sp|length }} plage(s) ?')">
+                        <i class="bi bi-download me-1"></i> Importer ({{ items_sp|length }})
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if items_sp %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr><th>Jour</th><th>Heure début</th><th class="text-center">Ouvert</th><th>Note</th></tr>
+                        </thead>
+                        <tbody>
+                        {% for p in items_sp %}
+                        <tr>
+                            <td class="fw-semibold">{{ p.get('Jour') or '—' }}</td>
+                            <td class="font-monospace small">{{ (p.get('HeureDebut') or '—')[:5] }}</td>
+                            <td class="text-center">
+                                {% if p.get('Ouvert','Oui')|string|lower not in ('non','false','0') %}
+                                <span class="badge bg-success">Oui</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Non</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted small">{{ p.get('Note') or '' }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted small">
+                    {% if not erreur %}Aucune plage dans SharePoint.{% endif %}
+                    Gérez-les directement dans Limoud Hub →
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Plages BDD + ajout manuel -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header py-2 fw-semibold small">
+                <i class="bi bi-database me-1"></i> BDD Limoud Hub
+                ({{ plages_bdd|length }} plage(s))
+            </div>
+            <div class="card-body p-0">
+                {% if plages_bdd %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr><th>Jour</th><th>Heure</th><th class="text-center">Ouvert</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                        {% for p in plages_bdd %}
+                        <tr>
+                            <td class="fw-semibold">{{ p.jour }}</td>
+                            <td class="font-monospace small">{{ p.heure_debut }}</td>
+                            <td class="text-center">
+                                {% if p.ouvert %}
+                                <span class="badge bg-success">Oui</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Fermé</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-2">
+                                <form action="{{ url_for('planning.plage_supprimer', plage_id=p.id) }}" method="post"
+                                      onsubmit="return confirm('Supprimer cette plage ?')">
+                                    <button class="btn btn-sm btn-outline-danger py-0 px-1">
+                                        <i class="bi bi-trash" style="font-size:.75rem"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-3 text-center text-muted small">Aucune plage définie.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Formulaire d'ajout manuel -->
+        <div class="card mt-3">
+            <div class="card-header py-2 fw-semibold small">
+                <i class="bi bi-plus-circle me-1"></i> Ajouter une plage manuellement
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('planning.plage_ajouter') }}" method="post"
+                      class="row g-2 align-items-end">
+                    <div class="col-5">
+                        <label class="form-label small mb-1">Jour</label>
+                        <select name="jour" class="form-select form-select-sm" required>
+                            {% for j in jours %}
+                            <option value="{{ j }}">{{ j }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small mb-1">Heure début</label>
+                        <input type="time" name="heure_debut" class="form-control form-control-sm"
+                               step="1800" required>
+                    </div>
+                    <div class="col-3">
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" name="ouvert"
+                                   id="ouvert" value="1" checked>
+                            <label class="form-check-label small" for="ouvert">Ouvert</label>
+                        </div>
+                        <button class="btn btn-sm btn-limoud w-100">Ajouter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endif %}
+{% endblock %}
