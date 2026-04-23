@@ -2,6 +2,9 @@ import sys
 import os
 import logging
 
+# Passenger capte stdout comme réponse HTTP — tout rediriger vers stderr
+sys.stdout = sys.stderr
+
 sys.path.insert(0, os.path.dirname(__file__))
 os.environ['FLASK_ENV'] = 'production'
 
