@@ -1,5 +1,5 @@
 """
-SharePoint Online client via Microsoft Graph / SharePoint REST API.
+SharePoint Online client via Microsoft Graph API.
 Authentification : client credentials (Azure AD App Registration).
 """
 
@@ -7,55 +7,58 @@ import requests
 
 
 class SharePointClient:
-    # Mapping des listes SharePoint vers les tables BDD
+
+    SITE_ID = "limoudfrance.sharepoint.com,9b4592a2-ac27-445b-9053-8769ed9cd241,4549c66f-a1ca-4663-97ed-edb16ce67409"
+    GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+
     LIST_MAPPINGS = {
         "Base Intervenants": {
             "table": "intervenants",
             "champs": {
-                "Title":          "nom",
-                "Prenom":         "prenom",
-                "Email":          "email_principal",
-                "Telephone":      "tel_mobile",
-                "FonctionTitre":  "fonction_titre",
-                "MiniBio":        "mini_bio",
-                "Specialites":    "specialites",
-                "Institutions":   "institutions",
-                "SiteWeb":        "site_web",
-                "Twitter":        "twitter",
-                "Instagram":      "instagram",
-                "LinkedIn":       "linkedin",
+                "Title":         "nom",
+                "Prenom":        "prenom",
+                "Email":         "email_principal",
+                "Telephone":     "tel_mobile",
+                "FonctionTitre": "fonction_titre",
+                "MiniBio":       "mini_bio",
+                "Specialites":   "specialites",
+                "Institutions":  "institutions",
+                "SiteWeb":       "site_web",
+                "Twitter":       "twitter",
+                "Instagram":     "instagram",
+                "LinkedIn":      "linkedin",
             },
         },
         "Liste interventions 2026": {
             "table": "sessions",
             "champs": {
-                "Title":          "titre",
-                "Description":    "description",
-                "Format":         "format_code",
-                "Duree":          "duree_minutes",
-                "Langue":         "langue_code",
-                "Niveau":         "niveau_code",
-                "Intervenant":    "_intervenant_nom",
+                "Title":       "titre",
+                "Description": "description",
+                "Format":      "format_code",
+                "Duree":       "duree_minutes",
+                "Langue":      "langue_code",
+                "Niveau":      "niveau_code",
+                "Intervenant": "_intervenant_nom",
             },
         },
-        "Salles d'intervention": {
+        "Salles Interventions 2026": {
             "table": "salles",
             "champs": {
-                "Title":          "nom",
-                "Capacite":       "capacite",
-                "Etage":          "etage",
-                "TypeSalle":      "type_salle",
-                "Note":           "note",
+                "Title":    "nom",
+                "Capacite": "capacite",
+                "Etage":    "etage",
+                "TypeSalle":"type_salle",
+                "Note":     "note",
             },
         },
         "Créneaux d'intervention": {
             "table": "creneaux",
             "champs": {
-                "Jour":           "jour",
-                "HeureDebut":     "heure_debut",
-                "HeureFin":       "heure_fin",
-                "Session":        "_session_titre",
-                "Salle":          "_salle_nom",
+                "Jour":      "jour",
+                "HeureDebut":"heure_debut",
+                "HeureFin":  "heure_fin",
+                "Session":   "_session_titre",
+                "Salle":     "_salle_nom",
             },
         },
     }
@@ -68,7 +71,6 @@ class SharePointClient:
         self._token        = None
 
     def _get_token(self):
-        """Obtient (ou retourne le cache) d'un token Azure AD."""
         if self._token:
             return self._token
         resp = requests.post(
@@ -86,36 +88,53 @@ class SharePointClient:
         return self._token
 
     def _headers(self):
-        return {
-            "Authorization": f"Bearer {self._get_token()}",
-            "Accept":        "application/json;odata=nometadata",
-        }
+        return {"Authorization": f"Bearer {self._get_token()}"}
+
+    def _get_list_id(self, list_name):
+        """Retourne l'ID Graph d'une liste par son displayName."""
+        resp = requests.get(
+            f"{self.GRAPH_BASE}/sites/{self.SITE_ID}/lists",
+            headers=self._headers(),
+            timeout=15,
+        )
+        resp.raise_for_status()
+        for l in resp.json().get("value", []):
+            if l.get("displayName") == list_name or l.get("name") == list_name:
+                return l["id"]
+        raise ValueError(f"Liste introuvable : {list_name}")
+
+    def get_available_lists(self):
+        """Liste toutes les listes disponibles sur le site."""
+        resp = requests.get(
+            f"{self.GRAPH_BASE}/sites/{self.SITE_ID}/lists",
+            headers=self._headers(),
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return [
+            {"Title": l.get("displayName"), "ItemCount": l.get("list", {}).get("itemCount", 0)}
+            for l in resp.json().get("value", [])
+            if not l.get("list", {}).get("hidden", False)
+        ]
 
     def get_list_items(self, list_name, select=None, filter_query=None, top=100):
-        """Récupère les items d'une liste SharePoint via REST API."""
-        encoded = requests.utils.quote(list_name)
-        url = f"{self.site_url}/_api/web/lists/getbytitle('{encoded}')/items"
-        params = {"$top": top}
-        if select:
-            params["$select"] = ",".join(select)
+        """Récupère les items d'une liste SharePoint via Graph."""
+        list_id = self._get_list_id(list_name)
+        url = f"{self.GRAPH_BASE}/sites/{self.SITE_ID}/lists/{list_id}/items"
+        params = {"$top": top, "$expand": "fields"}
         if filter_query:
             params["$filter"] = filter_query
         resp = requests.get(url, headers=self._headers(), params=params, timeout=15)
         resp.raise_for_status()
-        data = resp.json()
-        return data.get("value", [])
-
-    def get_available_lists(self):
-        """Liste toutes les listes disponibles sur le site."""
-        url = f"{self.site_url}/_api/web/lists"
-        params = {
-            "$select": "Title,ItemCount,Hidden",
-            "$filter": "Hidden eq false",
-            "$orderby": "Title",
-        }
-        resp = requests.get(url, headers=self._headers(), params=params, timeout=15)
-        resp.raise_for_status()
-        return resp.json().get("value", [])
+        items = resp.json().get("value", [])
+        # Extraire les champs
+        result = []
+        for item in items:
+            fields = item.get("fields", {})
+            if select:
+                fields = {k: v for k, v in fields.items() if k in select}
+            result.append(fields)
+        return result
 
     def map_item(self, list_name, sp_item):
         """Convertit un item SharePoint vers un dict BDD selon le mapping."""
