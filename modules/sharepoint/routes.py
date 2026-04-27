@@ -107,7 +107,7 @@ def preview_salles():
     if not _check_admin():
         return redirect(url_for("dashboard"))
 
-    list_name = "Salles d'intervention"
+    list_name = "Salles Interventions 2026"
     client = _get_client()
     items_sp = None
     erreur = None
@@ -153,7 +153,7 @@ def import_salles():
         flash("Aucune édition active sélectionnée.", "warning")
         return redirect(url_for("sharepoint.preview_salles"))
 
-    list_name = "Salles d'intervention"
+    list_name = "Salles Interventions 2026"
     client = _get_client()
     nb_crees = 0
     nb_maj = 0
