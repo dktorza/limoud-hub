@@ -5,7 +5,10 @@ Toutes les interactions avec la BDD passent par ce module.
 
 import sqlite3
 import os
+import logging
 from flask import g, current_app
+
+logger = logging.getLogger(__name__)
 
 
 def get_db():
@@ -47,9 +50,9 @@ def init_db(app):
                 sql = f.read()
             try:
                 db.executescript(sql)
-                print(f"✓ Migration appliquée : {filename}")
+                logger.info("Migration appliquée : %s", filename)
             except sqlite3.Error as e:
-                print(f"⚠ Migration {filename} : {e}")
+                logger.warning("Migration %s : %s", filename, e)
         
         db.commit()
 
