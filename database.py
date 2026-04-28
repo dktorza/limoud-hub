@@ -32,19 +32,27 @@ def close_db(e=None):
 
 
 def init_db(app):
-    """Crée les tables si elles n'existent pas (appel au démarrage)."""
+    """Applique uniquement les migrations non encore jouées."""
     migrations_dir = os.path.join(os.path.dirname(__file__), 'migrations')
-    
     with app.app_context():
         db = get_db()
-        
-        # Lire et exécuter toutes les migrations dans l'ordre
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS _migrations (
+                filename TEXT PRIMARY KEY,
+                applied_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        db.commit()
         migration_files = sorted([
             f for f in os.listdir(migrations_dir)
             if f.endswith('.sql')
         ])
-        
         for filename in migration_files:
+            row = db.execute(
+                "SELECT 1 FROM _migrations WHERE filename=?", (filename,)
+            ).fetchone()
+            if row:
+                continue
             filepath = os.path.join(migrations_dir, filename)
             with open(filepath, 'r', encoding='utf-8') as f:
                 sql = f.read()
@@ -53,8 +61,12 @@ def init_db(app):
                 logger.info("Migration appliquée : %s", filename)
             except sqlite3.Error as e:
                 logger.warning("Migration %s : %s", filename, e)
-        
-        db.commit()
+            finally:
+                try:
+                    db.execute("INSERT OR IGNORE INTO _migrations (filename) VALUES (?)", (filename,))
+                    db.commit()
+                except:
+                    pass
 
 
 # ---------------------------------------------------------------------------
