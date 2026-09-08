@@ -1,0 +1,25 @@
+﻿# Environnement / secrets
+.env
+.vscode/sftp.json
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Données
+data/
+*.db
+*.sqlite
+*.sqlite3
+tmp/*
+!tmp/restart.txt
+
+# Divers
+*.zip
+*.log
+.DS_Store
+Thumbs.db

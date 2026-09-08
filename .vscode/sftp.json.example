@@ -1,11 +1,11 @@
-{
+﻿{
     "name": "Limoud Hub O2Switch",
     "host": "sauron.o2switch.net",
     "protocol": "sftp",
     "port": 22,
     "username": "qpyq4619",
-    "password": "4YCR-EnQG-qP8#",
+    "password": "",
     "remotePath": "/home/qpyq4619/intranet.limoud.org",
     "uploadOnSave": true,
-    "ignore": ["__pycache__", "*.pyc", ".env", "data/", "*.zip"]
+    "ignore": ["__pycache__", "*.pyc", ".env", "data/", "*.zip", ".git/", ".vscode/"]
 }

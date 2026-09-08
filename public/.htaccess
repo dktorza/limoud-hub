@@ -1,0 +1,5 @@
+# Passenger — garder au moins 1 instance Python vivante en permanence
+# Évite le cold start de 30-60s sur O2Switch
+PassengerMinInstances 1
+PassengerMaxPoolSize 2
+PassengerPoolIdleTime 0
