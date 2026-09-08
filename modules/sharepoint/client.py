@@ -1,9 +1,17 @@
 """
-SharePoint Online client via Microsoft Graph / SharePoint REST API.
-Authentification : client credentials (Azure AD App Registration).
+SharePoint Online client via Microsoft Graph API (v1.0).
+Authentification : client credentials (Azure App Registration "Limoud Hub",
+permission d'application Sites.Read.All).
+
+Remarque : Graph expose les colonnes par leur nom INTERNE (ex. "field_1",
+"field_2"...) et non par leur libellé. Le nom interne réel de chaque colonne
+est visible dans la page /sharepoint/test (clés brutes des items). Le mapping
+LIST_MAPPINGS ci-dessous doit utiliser ces noms internes.
 """
 
 import requests
+
+GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 
 class SharePointClient:
@@ -66,6 +74,8 @@ class SharePointClient:
         self.client_secret = client_secret
         self.site_url      = site_url.rstrip("/")
         self._token        = None
+        self._site_id      = None
+        self._list_ids     = {}
 
     def _get_token(self):
         """Obtient (ou retourne le cache) d'un token Azure AD."""
@@ -88,34 +98,82 @@ class SharePointClient:
     def _headers(self):
         return {
             "Authorization": f"Bearer {self._get_token()}",
-            "Accept":        "application/json;odata=nometadata",
+            "Accept":        "application/json",
         }
 
-    def get_list_items(self, list_name, select=None, filter_query=None, top=100):
-        """Récupère les items d'une liste SharePoint via REST API."""
-        encoded = requests.utils.quote(list_name)
-        url = f"{self.site_url}/_api/web/lists/getbytitle('{encoded}')/items"
-        params = {"$top": top}
-        if select:
-            params["$select"] = ",".join(select)
-        if filter_query:
-            params["$filter"] = filter_query
-        resp = requests.get(url, headers=self._headers(), params=params, timeout=15)
+    def _get(self, url, params=None):
+        resp = requests.get(url, headers=self._headers(), params=params, timeout=20)
         resp.raise_for_status()
-        data = resp.json()
-        return data.get("value", [])
+        return resp.json()
+
+    def _get_site_id(self):
+        """Résout l'identifiant Graph du site à partir de SHAREPOINT_SITE_URL
+        (ex. https://limoudfrance.sharepoint.com/sites/LimoudOrga)."""
+        if self._site_id:
+            return self._site_id
+        parts = self.site_url.replace("https://", "").split("/", 1)
+        hostname = parts[0]
+        path = "/" + parts[1] if len(parts) > 1 else ""
+        data = self._get(f"{GRAPH_BASE}/sites/{hostname}:{path}")
+        self._site_id = data["id"]
+        return self._site_id
+
+    def _get_list_id(self, list_name):
+        """Résout l'id d'une liste à partir de son nom d'affichage."""
+        if list_name in self._list_ids:
+            return self._list_ids[list_name]
+        for l in self.get_available_lists():
+            self._list_ids[l["Title"]] = l["Id"]
+        if list_name not in self._list_ids:
+            raise ValueError(f"Liste SharePoint introuvable : {list_name}")
+        return self._list_ids[list_name]
 
     def get_available_lists(self):
-        """Liste toutes les listes disponibles sur le site."""
-        url = f"{self.site_url}/_api/web/lists"
-        params = {
-            "$select": "Title,ItemCount,Hidden",
-            "$filter": "Hidden eq false",
-            "$orderby": "Title",
-        }
-        resp = requests.get(url, headers=self._headers(), params=params, timeout=15)
-        resp.raise_for_status()
-        return resp.json().get("value", [])
+        """Liste les listes visibles du site. Retourne des dicts normalisés
+        {Title, Id, ItemCount} pour rester compatible avec les templates."""
+        site_id = self._get_site_id()
+        data = self._get(
+            f"{GRAPH_BASE}/sites/{site_id}/lists",
+            params={"$select": "id,displayName,list"},
+        )
+        result = []
+        for l in data.get("value", []):
+            if l.get("list", {}).get("hidden"):
+                continue
+            result.append({
+                "Title":     l.get("displayName"),
+                "Id":        l.get("id"),
+                "ItemCount": None,   # non fourni par Graph sans requête supplémentaire
+            })
+        return sorted(result, key=lambda x: (x["Title"] or "").lower())
+
+    def get_list_items(self, list_name, select=None, filter_query=None, top=100):
+        """Récupère les items d'une liste. Retourne, pour chaque item, le dict
+        `fields` (colonnes par nom interne) enrichi de `_id` (id de l'item)."""
+        site_id = self._get_site_id()
+        list_id = self._get_list_id(list_name)
+        url = f"{GRAPH_BASE}/sites/{site_id}/lists/{list_id}/items"
+        expand = "fields"
+        if select:
+            expand = "fields($select=" + ",".join(select) + ")"
+        params = {"$expand": expand, "$top": min(top, 200)}
+        if filter_query:
+            params["$filter"] = filter_query
+        headers = self._headers()
+        # Nécessaire pour filtrer sur des colonnes non indexées
+        headers["Prefer"] = "HonorNonIndexedQueriesWarningMayFailRandomly"
+        items = []
+        while url and len(items) < top:
+            resp = requests.get(url, headers=headers, params=params, timeout=20)
+            resp.raise_for_status()
+            data = resp.json()
+            for it in data.get("value", []):
+                fields = dict(it.get("fields", {}))
+                fields["_id"] = it.get("id")
+                items.append(fields)
+            url = data.get("@odata.nextLink")
+            params = None   # nextLink contient déjà les paramètres
+        return items[:top]
 
     def map_item(self, list_name, sp_item):
         """Convertit un item SharePoint vers un dict BDD selon le mapping."""
