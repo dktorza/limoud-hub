@@ -333,7 +333,10 @@ def sync_page():
         return redirect(url_for("dashboard"))
     eid = _edition_courante_id()
     edition = query("SELECT * FROM editions WHERE id=?", (eid,), one=True) if eid else None
-    resultats = flask_session.pop("sp_sync_resultats", None)
+    return _rendre_sync(eid, edition, None)
+
+
+def _rendre_sync(eid, edition, resultats):
     return render_template(
         "sharepoint/sync.html",
         edition=edition,
@@ -368,8 +371,9 @@ def sync_lancer(cle):
             resultats.append({"cle": cle_i, "libelle": lib, "liste": liste, "ok": False, "erreur": str(e)})
             if cle == "tout":
                 break   # les imports suivants dépendent de celui-ci
-    flask_session["sp_sync_resultats"] = resultats
-    return redirect(url_for("sharepoint.sync_page"))
+    # Rendu direct : le rapport peut dépasser la taille d'un cookie de session
+    edition = query("SELECT * FROM editions WHERE id=?", (eid,), one=True)
+    return _rendre_sync(eid, edition, resultats)
 
 
 # ── Colonnes d'une liste (diagnostic mapping) ───────────────────────────────
