@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}SharePoint — Synchronisation — Limoud Hub{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('sharepoint.index') }}">SharePoint</a></li>
+        <li class="breadcrumb-item active">Synchronisation</li>
+    </ol>
+</nav>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0">SharePoint — Synchronisation</h4>
+    {% if edition %}
+    <form method="post" action="{{ url_for('sharepoint.sync_lancer', cle='tout') }}"
+          onsubmit="return confirm('Lancer les 5 imports dans l\'ordre pour {{ edition.nom }} ?');">
+        <button class="btn btn-primary"><i class="bi bi-cloud-download me-1"></i> Tout importer</button>
+    </form>
+    {% endif %}
+</div>
+
+{% if not edition %}
+<div class="alert alert-warning">
+    Aucune édition active. Créez-la dans <a href="{{ url_for('admin.editions_liste') }}">Administration → Éditions</a>
+    puis sélectionnez-la dans la barre latérale.
+</div>
+{% else %}
+<p class="text-muted">Édition cible : <strong>{{ edition.nom }}</strong>. Les imports sont rejouables : une ligne déjà importée (même id SharePoint) est mise à jour, pas dupliquée.</p>
+
+<div class="card mb-4">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Étape</th><th>Liste SharePoint</th><th class="text-end">En base</th><th></th></tr></thead>
+            <tbody>
+            {% for cle, lib, liste in imports %}
+            <tr>
+                <td class="fw-semibold">{{ loop.index }}. {{ lib }}</td>
+                <td class="text-muted">{{ liste }}</td>
+                <td class="text-end"><span class="badge bg-secondary">{{ compteurs[cle] }}</span></td>
+                <td class="text-end">
+                    <form method="post" action="{{ url_for('sharepoint.sync_lancer', cle=cle) }}" class="d-inline">
+                        <button class="btn btn-sm btn-outline-primary">Importer</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            <tr class="table-light">
+                <td colspan="2" class="text-muted small">Créneaux planifiés reconstitués depuis TECH_Salle / TECH_Creneau (via l'import Sessions)</td>
+                <td class="text-end"><span class="badge bg-secondary">{{ compteurs.creneaux }}</span></td>
+                <td></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if resultats %}
+<h6 class="fw-bold">Résultat du dernier lancement</h6>
+{% for r in resultats %}
+<div class="card mb-2">
+    <div class="card-body py-2">
+        {% if r.ok %}
+        <div><i class="bi bi-check-circle text-success me-1"></i><strong>{{ r.libelle }}</strong> —
+            {{ r.crees }} créé(s), {{ r.maj }} mis à jour, {{ r.ignores }} ignoré(s)</div>
+        {% if r.avertissements %}
+        <details class="mt-1">
+            <summary class="small text-warning">{{ r.avertissements|length }} avertissement(s)</summary>
+            <ul class="small mb-0 mt-1">
+                {% for a in r.avertissements %}<li>{{ a }}</li>{% endfor %}
+            </ul>
+        </details>
+        {% endif %}
+        {% else %}
+        <div><i class="bi bi-x-circle text-danger me-1"></i><strong>{{ r.libelle }}</strong> — erreur : {{ r.erreur }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

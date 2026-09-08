@@ -4,6 +4,7 @@ from flask import (Blueprint, render_template, flash, redirect,
 from flask_login import login_required, current_user
 from database import query, execute, insert
 from .client import SharePointClient
+from . import sync as sp_sync
 
 bp = Blueprint("sharepoint", __name__, template_folder="templates")
 
@@ -310,6 +311,65 @@ def import_plages():
         flash(f"Import terminé : {nb_crees} plage(s) créée(s), {nb_maj} mise(s) à jour.", "success")
 
     return redirect(url_for("sharepoint.preview_plages"))
+
+
+# ── Synchronisation complète ────────────────────────────────────────────────
+
+def _compteurs(eid):
+    return {
+        "themes":       query("SELECT COUNT(*) n FROM themes WHERE actif=1", one=True)["n"],
+        "salles":       query("SELECT COUNT(*) n FROM salles WHERE edition_id=? AND actif=1", (eid,), one=True)["n"],
+        "plages":       query("SELECT COUNT(*) n FROM plages_horaires WHERE edition_id=?", (eid,), one=True)["n"],
+        "intervenants": query("SELECT COUNT(*) n FROM participations_intervenants WHERE edition_id=?", (eid,), one=True)["n"],
+        "sessions":     query("SELECT COUNT(*) n FROM sessions WHERE edition_id=?", (eid,), one=True)["n"],
+        "creneaux":     query("SELECT COUNT(*) n FROM creneaux WHERE edition_id=?", (eid,), one=True)["n"],
+    }
+
+
+@bp.route("/sync")
+@login_required
+def sync_page():
+    if not _check_admin():
+        return redirect(url_for("dashboard"))
+    eid = _edition_courante_id()
+    edition = query("SELECT * FROM editions WHERE id=?", (eid,), one=True) if eid else None
+    resultats = flask_session.pop("sp_sync_resultats", None)
+    return render_template(
+        "sharepoint/sync.html",
+        edition=edition,
+        imports=[(cle, lib, liste) for cle, lib, liste, _ in sp_sync.IMPORTS],
+        compteurs=_compteurs(eid) if eid else None,
+        resultats=resultats,
+    )
+
+
+@bp.route("/sync/<cle>", methods=["POST"])
+@login_required
+def sync_lancer(cle):
+    if not _check_admin():
+        return redirect(url_for("dashboard"))
+    eid = _edition_courante_id()
+    if not eid:
+        flash("Aucune édition active : créez-la d'abord dans Administration → Éditions.", "warning")
+        return redirect(url_for("sharepoint.sync_page"))
+
+    a_lancer = [x for x in sp_sync.IMPORTS if cle == "tout" or x[0] == cle]
+    if not a_lancer:
+        flash("Import inconnu.", "danger")
+        return redirect(url_for("sharepoint.sync_page"))
+
+    client = _get_client()
+    resultats = []
+    for cle_i, lib, liste, fonction in a_lancer:
+        try:
+            st = fonction(client, eid)
+            resultats.append({"cle": cle_i, "libelle": lib, "liste": liste, "ok": True, **st})
+        except Exception as e:
+            resultats.append({"cle": cle_i, "libelle": lib, "liste": liste, "ok": False, "erreur": str(e)})
+            if cle == "tout":
+                break   # les imports suivants dépendent de celui-ci
+    flask_session["sp_sync_resultats"] = resultats
+    return redirect(url_for("sharepoint.sync_page"))
 
 
 # ── Colonnes d'une liste (diagnostic mapping) ───────────────────────────────
