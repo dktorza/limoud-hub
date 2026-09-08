@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}SharePoint — Colonnes — Limoud Hub{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('sharepoint.index') }}">SharePoint</a></li>
+        <li class="breadcrumb-item active">Colonnes</li>
+    </ol>
+</nav>
+<h4 class="fw-bold mb-3">SharePoint — Colonnes d'une liste</h4>
+
+{% if erreur %}
+<div class="alert alert-danger"><strong>Erreur :</strong> {{ erreur }}</div>
+{% endif %}
+
+<form method="get" class="row g-2 align-items-center mb-4">
+    <div class="col-auto">
+        <select name="liste" class="form-select">
+            <option value="">— Choisir une liste —</option>
+            {% for l in listes or [] %}
+            <option value="{{ l }}" {% if l == list_name %}selected{% endif %}>{{ l }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary btn-sm">Afficher les colonnes</button>
+    </div>
+</form>
+
+{% if colonnes is not none %}
+<div class="card">
+    <div class="card-header fw-bold">{{ list_name }} — {{ colonnes|length }} colonnes (masquées et lecture seule exclues)</div>
+    <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Nom interne</th>
+                    <th>Libellé affiché</th>
+                    <th>Type</th>
+                    <th>Choix possibles</th>
+                    <th>Exemple (1er item)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in colonnes %}
+                <tr>
+                    <td><code>{{ c.name }}</code></td>
+                    <td class="fw-semibold">{{ c.displayName }}</td>
+                    <td><span class="badge bg-secondary">{{ c.type }}</span></td>
+                    <td class="small text-muted">{{ c.choices|join(' · ') if c.choices else '' }}</td>
+                    <td class="small text-muted">{{ (exemple or {}).get(c.name, '') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -147,6 +147,35 @@ class SharePointClient:
             })
         return sorted(result, key=lambda x: (x["Title"] or "").lower())
 
+    def get_list_columns(self, list_name):
+        """Colonnes d'une liste : nom interne, libellé affiché, type, masquée.
+        C'est la table de correspondance à utiliser pour LIST_MAPPINGS."""
+        site_id = self._get_site_id()
+        list_id = self._get_list_id(list_name)
+        data = self._get(
+            f"{GRAPH_BASE}/sites/{site_id}/lists/{list_id}/columns",
+            params={"$select": "name,displayName,hidden,readOnly,text,number,choice,"
+                               "dateTime,boolean,lookup,personOrGroup,hyperlinkOrPicture"},
+        )
+        cols = []
+        for c in data.get("value", []):
+            for t in ("text", "number", "choice", "dateTime", "boolean",
+                      "lookup", "personOrGroup", "hyperlinkOrPicture"):
+                if t in c:
+                    typ = t
+                    break
+            else:
+                typ = "?"
+            cols.append({
+                "name":        c.get("name"),
+                "displayName": c.get("displayName"),
+                "type":        typ,
+                "hidden":      bool(c.get("hidden")),
+                "readOnly":    bool(c.get("readOnly")),
+                "choices":     (c.get("choice") or {}).get("choices"),
+            })
+        return cols
+
     def get_list_items(self, list_name, select=None, filter_query=None, top=100):
         """Récupère les items d'une liste. Retourne, pour chaque item, le dict
         `fields` (colonnes par nom interne) enrichi de `_id` (id de l'item)."""

@@ -312,6 +312,34 @@ def import_plages():
     return redirect(url_for("sharepoint.preview_plages"))
 
 
+# ── Colonnes d'une liste (diagnostic mapping) ───────────────────────────────
+
+@bp.route("/colonnes")
+@login_required
+def colonnes():
+    if not _check_admin():
+        return redirect(url_for("dashboard"))
+
+    client = _get_client()
+    list_name = request.args.get("liste", "")
+    listes, colonnes, exemple, erreur = None, None, None, None
+    try:
+        listes = [l["Title"] for l in client.get_available_lists()]
+        if list_name:
+            colonnes = [c for c in client.get_list_columns(list_name)
+                        if not c["hidden"] and not c["readOnly"]]
+            items = client.get_list_items(list_name, top=1)
+            exemple = items[0] if items else {}
+    except Exception as e:
+        erreur = str(e)
+
+    return render_template(
+        "sharepoint/colonnes.html",
+        listes=listes, list_name=list_name,
+        colonnes=colonnes, exemple=exemple, erreur=erreur,
+    )
+
+
 # ── Preview intervenants (ancien POC) ────────────────────────────────────────
 
 @bp.route("/preview-intervenants")
