@@ -266,7 +266,7 @@
         {% endfor %}
         {% endif %}
         {% endwith %}
-        {% block content %}{% endblock %}
+        {{ self.content() }}
     </div>
 </div>
 {% endif %}
