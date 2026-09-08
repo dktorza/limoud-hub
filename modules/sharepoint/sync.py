@@ -267,7 +267,15 @@ def importer_intervenants(client, edition_id):
             row = query("SELECT id FROM intervenants WHERE lower(nom)=lower(?) AND lower(prenom)=lower(?)",
                         (data["nom"], data["prenom"]), one=True)
 
+        fusion = 0
         if row:
+            deja = query("SELECT sp_item_id FROM intervenants WHERE id=?", (row["id"],), one=True)["sp_item_id"]
+            if deja and deja != sp_id:
+                # Doublon SharePoint : on garde le premier id sur la fiche, on mémorise l'autre en alias
+                fusion = 1
+                data["sp_item_id"] = deja
+                st["avertissements"].append(
+                    f"Doublon SharePoint : #{sp_id} ({prenom} {nom}) fusionné avec #{deja}")
             sets = ", ".join(f"{k}=?" for k in data)
             execute(f"UPDATE intervenants SET {sets}, updated_at=datetime('now') WHERE id=?",
                     (*data.values(), row["id"]))
@@ -276,6 +284,8 @@ def importer_intervenants(client, edition_id):
         else:
             iid = insert("intervenants", data)
             st["crees"] += 1
+        execute("INSERT OR REPLACE INTO intervenants_sp_alias (sp_item_id, intervenant_id, fusionne) "
+                "VALUES (?, ?, ?)", (sp_id, iid, fusion))
 
         # Participation à l'édition courante (données 2026)
         part = {
@@ -343,6 +353,9 @@ def importer_sessions(client, edition_id):
     themes = {t["libelle"].lower(): t["id"] for t in query("SELECT id, libelle FROM themes WHERE actif=1")}
     interv_par_sp = {r["sp_item_id"]: r["id"]
                      for r in query("SELECT id, sp_item_id FROM intervenants WHERE sp_item_id IS NOT NULL")}
+    interv_par_sp.update({r["sp_item_id"]: r["intervenant_id"]
+                          for r in query("SELECT sp_item_id, intervenant_id FROM intervenants_sp_alias")})
+    salles_manquantes, plages_manquantes = set(), set()
     salles_par_sp = {r["sp_item_id"]: r["id"]
                      for r in query("SELECT id, sp_item_id FROM salles WHERE edition_id=? AND sp_item_id IS NOT NULL",
                                     (edition_id,))}
@@ -361,11 +374,18 @@ def importer_sessions(client, edition_id):
         theme_lib = (_txt(it.get("field_5")) or "").lower()
         theme_id = themes.get(theme_lib)
         if not theme_id and theme_lib:
-            # correspondance souple : premier mot commun
+            # correspondance souple : formes normalisées (sans accents/ponctuation),
+            # puis premier "mot" normalisé commun (technologie... / philosophie...)
+            cible = _slug(theme_lib)
             for lib, tid in themes.items():
-                if lib.split()[0] == theme_lib.split()[0]:
+                if _slug(lib) == cible:
                     theme_id = tid
                     break
+            if not theme_id:
+                for lib, tid in themes.items():
+                    if _slug(lib).split("_")[0] == cible.split("_")[0]:
+                        theme_id = tid
+                        break
             if not theme_id:
                 st["avertissements"].append(f"« {titre} » : thème inconnu « {theme_lib} »")
 
@@ -448,8 +468,19 @@ def importer_sessions(client, edition_id):
                 else:
                     insert("creneaux", {**cren, "session_id": sid})
             else:
+                if not salle_id:
+                    salles_manquantes.add(int(tech_salle))
+                if not plage:
+                    plages_manquantes.add(int(tech_plage))
                 st["avertissements"].append(
-                    f"« {titre} » : salle #{tech_salle} ou créneau #{tech_plage} inconnu (importer salles et plages d'abord)")
+                    f"« {titre} » : {'salle #' + tech_salle + ' inconnue' if not salle_id else ''}"
+                    f"{' / ' if not salle_id and not plage else ''}"
+                    f"{'créneau #' + tech_plage + ' inconnu' if not plage else ''}")
+    if salles_manquantes or plages_manquantes:
+        st["avertissements"].insert(0,
+            f"DIAGNOSTIC — salles en base (id SharePoint) : {sorted(salles_par_sp)} ; "
+            f"ids de salles référencés mais absents : {sorted(salles_manquantes)} ; "
+            f"plages en base : {sorted(plages_par_sp)} ; absentes : {sorted(plages_manquantes)}")
     return st
 
 
